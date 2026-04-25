@@ -21,22 +21,11 @@ jobs:
     name: Build Signed WDA IPA
     runs-on: macos-15
 
-    env:
-      BUNDLE_ID: ${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}
-      TEAM_ID: ${{ github.event.inputs.team_id || '8R6WK6QAKF' }}
-      PROFILE_NAME: ${{ github.event.inputs.profile_name || '00008030-0001598021E2802E3SL5LO' }}
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
-
-      - name: Show Build Config
-        run: |
-          echo "Bundle ID: $BUNDLE_ID"
-          echo "Team ID: $TEAM_ID"
-          echo "Profile Name: $PROFILE_NAME"
 
       - name: Install Certificate and Profile
         env:
@@ -73,12 +62,12 @@ jobs:
 
       - name: Update Bundle ID
         run: |
+          BUNDLE_ID="${{ github.event.inputs.wda_bundle_id }}"
           echo "Updating bundle ID to: $BUNDLE_ID"
           sed -i '' "s/com.facebook.WebDriverAgentRunner/$BUNDLE_ID/g" WebDriverAgent.xcodeproj/project.pbxproj
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
-          grep -n "ProvisioningStyle" WebDriverAgent.xcodeproj/project.pbxproj || echo "No ProvisioningStyle found"
 
       - name: Build WDA
         id: build
@@ -113,21 +102,23 @@ jobs:
         run: |
           set -x
           APP_PATH="${{ steps.build.outputs.APP_PATH }}"
+          TEAM_ID="${{ github.event.inputs.team_id }}"
+          BUNDLE_ID="${{ github.event.inputs.wda_bundle_id }}"
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          cat > $ENTITLEMENTS_PATH << 'EOF'
+          cat > $ENTITLEMENTS_PATH << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>application-identifier</key>
-    <string>${{ env.TEAM_ID }}.${{ env.BUNDLE_ID }}</string>
+    <string>${TEAM_ID}.${BUNDLE_ID}</string>
     <key>com.apple.developer.team-identifier</key>
-    <string>${{ env.TEAM_ID }}</string>
+    <string>${TEAM_ID}</string>
     <key>get-task-allow</key>
     <true/>
     <key>keychain-access-groups</key>
     <array>
-        <string>${{ env.TEAM_ID }}.${{ env.BUNDLE_ID }}</string>
+        <string>${TEAM_ID}.${BUNDLE_ID}</string>
     </array>
 </dict>
 </plist>
