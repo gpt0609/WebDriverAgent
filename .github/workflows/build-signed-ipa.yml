@@ -1,27 +1,28 @@
 name: Build Signed WDA IPA
 
-on:
-  workflow_dispatch:
-    inputs:
-      wda_bundle_id:
-        description: 'WDA Bundle ID'
-        required: false
-        default: 'app.honey4212.crystal5671'
-        type: string
-      team_id:
-        description: 'Apple Developer Team ID'
-        required: false
-        default: '8R6WK6QAKF'
-        type: string
-      profile_name:
-        description: 'Provisioning Profile Name'
-        required: false
-        default: '00008030-0001598021E2802E3SL5LO'
-        type: string
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/build-signed-ipa.yml'
+# Workflow triggers
+workflow_dispatch:
+  inputs:
+    wda_bundle_id:
+      description: 'WDA Bundle ID'
+      required: false
+      default: 'app.honey4212.crystal5671'
+      type: string
+    team_id:
+      description: 'Apple Developer Team ID'
+      required: false
+      default: '8R6WK6QAKF'
+      type: string
+    profile_name:
+      description: 'Provisioning Profile Name'
+      required: false
+      default: '00008030-0001598021E2802E3SL5LO'
+      type: string
+
+push:
+  branches: [master]
+  paths:
+    - '.github/workflows/build-signed-ipa.yml'
 
 env:
   BUNDLE_ID: ${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}
