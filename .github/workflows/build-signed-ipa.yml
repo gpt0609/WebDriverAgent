@@ -7,31 +7,24 @@ on:
         description: 'WDA Bundle ID'
         required: false
         default: 'app.honey4212.crystal5671'
-        type: string
       team_id:
         description: 'Apple Developer Team ID'
         required: false
         default: '8R6WK6QAKF'
-        type: string
       profile_name:
         description: 'Provisioning Profile Name'
         required: false
         default: '00008030-0001598021E2802E3SL5LO'
-        type: string
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/build-signed-ipa.yml'
-
-env:
-  BUNDLE_ID: ${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}
-  TEAM_ID: ${{ github.event.inputs.team_id || '8R6WK6QAKF' }}
-  PROFILE_NAME: ${{ github.event.inputs.profile_name || '00008030-0001598021E2802E3SL5LO' }}
 
 jobs:
   build:
     name: Build Signed WDA IPA
     runs-on: macos-15
+
+    env:
+      BUNDLE_ID: ${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}
+      TEAM_ID: ${{ github.event.inputs.team_id || '8R6WK6QAKF' }}
+      PROFILE_NAME: ${{ github.event.inputs.profile_name || '00008030-0001598021E2802E3SL5LO' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -74,61 +67,85 @@ jobs:
           PROFILE_TEMP=$RUNNER_TEMP/profile.mobileprovision
           echo "$PROFILE_BASE64" | tr -d '\r\n' | base64 --decode > $PROFILE_TEMP
           PROFILE_UUID=$(security cms -D -i $PROFILE_TEMP 2>/dev/null | plutil -extract UUID raw -)
+          echo "Profile UUID: $PROFILE_UUID"
           cp $PROFILE_TEMP "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
           ls -la "$PROFILE_DIR/"
 
       - name: Update Bundle ID
         run: |
+          echo "Updating bundle ID to: $BUNDLE_ID"
           sed -i '' "s/com.facebook.WebDriverAgentRunner/$BUNDLE_ID/g" WebDriverAgent.xcodeproj/project.pbxproj
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
-          sed -i '' 's/EEF988291C486603005CA669 = {/EEF988291C486603005CA669 = {\
-            ProvisioningStyle = Manual;/g' WebDriverAgent.xcodeproj/project.pbxproj
+          grep -n "ProvisioningStyle" WebDriverAgent.xcodeproj/project.pbxproj || echo "No ProvisioningStyle found"
 
       - name: Build WDA
         id: build
         run: |
           set -o pipefail
           set -x
-          xcodebuild -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'generic/platform=iOS' -derivedDataPath wda_build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
-          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
+          xcodebuild -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'generic/platform=iOS' -derivedDataPath build_out -configuration Release CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
+          echo "Searching for .app bundle..."
+          find build_out -name "*.app" -type d
+          APP_PATH=$(find build_out -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app found in build_out"
+            cat build.log | tail -200
+            exit 1
+          fi
           echo "Found app: $APP_PATH"
           echo "APP_PATH=$APP_PATH" >> $GITHUB_OUTPUT
-          PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/ | head -1 | sed 's/.mobileprovision//')
-          echo "Profile UUID: $PROFILE_UUID"
-          cp ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision "$APP_PATH/embedded.mobileprovision"
-          ls -la WebDriverAgentRunner/
+
+      - name: Embed Provisioning Profile
+        run: |
+          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
+          PROFILE_DIR=~/Library/MobileDevice/Provisioning\ Profiles
+          PROFILE_FILE=$(ls "$PROFILE_DIR"/*.mobileprovision 2>/dev/null | head -1)
+          if [ -n "$PROFILE_FILE" ]; then
+            echo "Copying profile: $PROFILE_FILE"
+            cp "$PROFILE_FILE" "$APP_PATH/embedded.mobileprovision"
+          else
+            echo "WARNING: No provisioning profile found in Profiles directory"
+          fi
+
+      - name: Create Entitlements and Sign
+        run: |
+          set -x
+          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          cat > $ENTITLEMENTS_PATH << XMLEOF
+          cat > $ENTITLEMENTS_PATH << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>application-identifier</key>
-    <string>$TEAM_ID.$BUNDLE_ID</string>
+    <string>${{ env.TEAM_ID }}.${{ env.BUNDLE_ID }}</string>
     <key>com.apple.developer.team-identifier</key>
-    <string>$TEAM_ID</string>
+    <string>${{ env.TEAM_ID }}</string>
     <key>get-task-allow</key>
     <true/>
     <key>keychain-access-groups</key>
     <array>
-        <string>$TEAM_ID.$BUNDLE_ID</string>
+        <string>${{ env.TEAM_ID }}.${{ env.BUNDLE_ID }}</string>
     </array>
 </dict>
 </plist>
-XMLEOF
-          echo "Created entitlements file:"
+EOF
+          echo "Entitlements content:"
           cat $ENTITLEMENTS_PATH
+          echo "Signing with certificate..."
+          security find-identity -v -p codesigning
           codesign --force --sign "iPhone Distribution" --entitlements $ENTITLEMENTS_PATH --timestamp --deep "$APP_PATH"
           echo "Signing completed"
           codesign -dv "$APP_PATH" 2>&1 || true
 
       - name: Create IPA
         run: |
-          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
-          echo "Found app: $APP_PATH"
-          if [ -z "$APP_PATH" ]; then echo "No .app found!"; exit 1; fi
+          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app path available!"; exit 1; fi
+          rm -rf Payload
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r WebDriverAgent.ipa Payload
