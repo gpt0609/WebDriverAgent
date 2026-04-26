@@ -829,7 +829,6 @@
 		A1B2C3D4E5F6001100000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = EE9B76871CF7997600275851 /* main.m */; };
 		A1B2C3D4E5F6001100000002 /* FBWDAAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */; };
 		A1B2C3D4E5F6001100000003 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 716C9342224D53A1004B8542 /* XCTest.framework */; };
-		A1B2C3D4E5F6001100000005 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1415,7 +1414,6 @@
 		F59CD6D22EF16E5E00F91287 /* XCUIElement+FBCustomActions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIElement+FBCustomActions.h"; sourceTree = "<group>"; };
 		F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIElement+FBCustomActions.m"; sourceTree = "<group>"; };
 		A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FBWDAAppDelegate.m; path = WebDriverAgentRunner/FBWDAAppDelegate.m; sourceTree = SOURCE_ROOT; };
-		A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = WebDriverAgentRunner/LaunchScreen.storyboard; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2303,7 +2301,6 @@
 				EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */,
 				EE9B76871CF7997600275851 /* main.m */,
 				A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */,
-				A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */,
 			);
 			name = WebDriverAgentRunner;
 			path = WebDriverAgentRunner;
@@ -3120,7 +3117,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1B2C3D4E5F6001100000005 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
