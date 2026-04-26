@@ -826,6 +826,10 @@
 		F59CD6D52EF16E5E00F91287 /* XCUIElement+FBCustomActions.m in Sources */ = {isa = PBXBuildFile; fileRef = F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */; };
 		F59CD6D62EF16E5E00F91287 /* XCUIElement+FBCustomActions.h in Headers */ = {isa = PBXBuildFile; fileRef = F59CD6D22EF16E5E00F91287 /* XCUIElement+FBCustomActions.h */; };
 		F59CD6D72EF16E5E00F91287 /* XCUIElement+FBCustomActions.m in Sources */ = {isa = PBXBuildFile; fileRef = F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */; };
+		A1B2C3D4E5F6001100000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = EE9B76871CF7997600275851 /* main.m */; };
+		A1B2C3D4E5F6001100000002 /* FBWDAAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */; };
+		A1B2C3D4E5F6001100000003 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 716C9342224D53A1004B8542 /* XCTest.framework */; };
+		A1B2C3D4E5F6001100000005 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1407,9 +1411,11 @@
 		EEE5CABF1C80361500CBBDD9 /* IOSSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = IOSSettings.xcconfig; sourceTree = "<group>"; };
 		EEE9B4701CD02B88009D2030 /* FBRunLoopSpinner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FBRunLoopSpinner.h; sourceTree = "<group>"; };
 		EEE9B4711CD02B88009D2030 /* FBRunLoopSpinner.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FBRunLoopSpinner.m; sourceTree = "<group>"; };
-		EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WebDriverAgentRunner.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EEF9882A1C486603005CA669 /* WebDriverAgentRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebDriverAgentRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F59CD6D22EF16E5E00F91287 /* XCUIElement+FBCustomActions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIElement+FBCustomActions.h"; sourceTree = "<group>"; };
 		F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIElement+FBCustomActions.m"; sourceTree = "<group>"; };
+		A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FBWDAAppDelegate.m; path = WebDriverAgentRunner/FBWDAAppDelegate.m; sourceTree = SOURCE_ROOT; };
+		A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = WebDriverAgentRunner/LaunchScreen.storyboard; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1498,6 +1504,7 @@
 			files = (
 				EE158B5A1CBD462100A3E3F0 /* WebDriverAgentLib.framework in Frameworks */,
 				716C9346224D540C004B8542 /* libxml2.tbd in Frameworks */,
+				A1B2C3D4E5F6001100000003 /* XCTest.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2294,9 +2301,12 @@
 			children = (
 				EE9AB7FC1CAEE048008C271F /* Info.plist */,
 				EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */,
+				EE9B76871CF7997600275851 /* main.m */,
+				A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */,
+				A1B2C3D4E5F6001100000006 /* LaunchScreen.storyboard */,
 			);
 			name = WebDriverAgentRunner;
-			path = XCTUITestRunner;
+			path = WebDriverAgentRunner;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -2972,9 +2982,9 @@
 				EE158B5C1CBD462500A3E3F0 /* PBXTargetDependency */,
 			);
 			name = WebDriverAgentRunner;
-			productName = XCTUITestRunner;
-			productReference = EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
+			productName = WebDriverAgentRunner;
+			productReference = EEF9882A1C486603005CA669 /* WebDriverAgentRunner.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -3110,6 +3120,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F6001100000005 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3507,7 +3518,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EE9AB8011CAEE048008C271F /* UITestingUITests.m in Sources */,
+				A1B2C3D4E5F6001100000001 /* main.m in Sources */,
+				A1B2C3D4E5F6001100000002 /* FBWDAAppDelegate.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4366,7 +4378,6 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.facebook.WebDriverAgentRunner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USES_XCTRUNNER = YES;
 				WARNING_CFLAGS = (
 					"$(inherited)",
 					"-Weverything",
@@ -4419,7 +4430,6 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.facebook.WebDriverAgentRunner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USES_XCTRUNNER = YES;
 				WARNING_CFLAGS = (
 					"$(inherited)",
 					"-Weverything",

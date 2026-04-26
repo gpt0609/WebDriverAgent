@@ -15,13 +15,37 @@
 #import <WebDriverAgentLib/XCTestCase.h>
 #import <UIKit/UIKit.h>
 
+static FBWebServer *_sharedWebServer = nil;
+static UIWindow *_statusWindow = nil;
+static BOOL _webServerStarted = NO;
+
 @interface UITestingUITests : FBFailureProofTestCase <FBWebServerDelegate>
 @end
 
-static FBWebServer *_sharedWebServer = nil;
-static UIWindow *_statusWindow = nil;
-
 @implementation UITestingUITests
+
++ (void)load
+{
+  [super load];
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    if (_sharedWebServer == nil && !_webServerStarted) {
+      _webServerStarted = YES;
+      [FBConfiguration disableRemoteQueryEvaluation];
+      [FBConfiguration configureDefaultKeyboardPreferences];
+      [FBConfiguration disableApplicationUIInterruptionsHandling];
+      [FBConfiguration disableScreenRecordings];
+      [FBConfiguration disableScreenshots];
+
+      _sharedWebServer = [[FBWebServer alloc] init];
+      UITestingUITests *delegateInstance = [[UITestingUITests alloc] init];
+      _sharedWebServer.delegate = delegateInstance;
+      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [_sharedWebServer startServing];
+      });
+      [UITestingUITests showAutomationRunningAlert];
+    }
+  });
+}
 
 + (void)setUp
 {
@@ -41,20 +65,18 @@ static UIWindow *_statusWindow = nil;
   }
   [super setUp];
 
-  if (_sharedWebServer == nil) {
+  if (_sharedWebServer == nil && !_webServerStarted) {
+    _webServerStarted = YES;
     _sharedWebServer = [[FBWebServer alloc] init];
-    UITestingUITests *delegateInstance = [[UITestingUITests alloc] init];
-    _sharedWebServer.delegate = delegateInstance;
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      [_sharedWebServer startServing];
-    });
-    [UITestingUITests showAutomationRunningAlert];
+    _sharedWebServer.delegate = self;
+    [_sharedWebServer startServing];
   }
 }
 
 - (void)testRunner
 {
-  if (_sharedWebServer == nil) {
+  if (_sharedWebServer == nil && !_webServerStarted) {
+    _webServerStarted = YES;
     _sharedWebServer = [[FBWebServer alloc] init];
     _sharedWebServer.delegate = self;
     [_sharedWebServer startServing];
@@ -66,7 +88,11 @@ static UIWindow *_statusWindow = nil;
 
 + (void)showAutomationRunningAlert
 {
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    if (_statusWindow != nil) {
+      return;
+    }
+
     CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
 

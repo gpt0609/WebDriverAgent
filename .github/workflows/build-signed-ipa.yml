@@ -75,10 +75,16 @@ jobs:
         run: |
           set -o pipefail
           set -x
-          xcodebuild -project WebDriverAgent.xcodeproj -scheme WebDriverAgentRunner -destination 'generic/platform=iOS' -derivedDataPath build_out -configuration Release CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log
+          xcodebuild -project WebDriverAgent.xcodeproj \
+            -scheme WebDriverAgentRunner \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build_out \
+            -configuration Release \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build.log
           echo "Searching for .app bundle..."
           find build_out -name "*.app" -type d
-          APP_PATH=$(find build_out -name "*.app" -type d | head -1)
+          APP_PATH=$(find build_out -name "*.app" -type d | grep -v "IntegrationApp" | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: No .app found in build_out"
             cat build.log | tail -200
@@ -86,6 +92,10 @@ jobs:
           fi
           echo "Found app: $APP_PATH"
           echo "APP_PATH=$APP_PATH" >> $GITHUB_OUTPUT
+          echo "App contents:"
+          ls -la "$APP_PATH/"
+          echo "Frameworks:"
+          ls -la "$APP_PATH/Frameworks/" 2>/dev/null || echo "No Frameworks directory"
 
       - name: Embed Provisioning Profile
         run: |
@@ -118,9 +128,15 @@ jobs:
           set -x
           APP_PATH="${{ steps.build.outputs.APP_PATH }}"
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          echo "Signing with certificate..."
-          security find-identity -v -p codesigning
-          codesign --force --sign "iPhone Distribution" --entitlements $ENTITLEMENTS_PATH --timestamp --deep "$APP_PATH"
+          echo "Signing frameworks first..."
+          for framework in "$APP_PATH/Frameworks/"*.framework; do
+            if [ -d "$framework" ]; then
+              echo "Signing: $framework"
+              codesign --force --sign "iPhone Distribution" --timestamp "$framework"
+            fi
+          done
+          echo "Signing app..."
+          codesign --force --sign "iPhone Distribution" --entitlements $ENTITLEMENTS_PATH --timestamp "$APP_PATH"
           echo "Signing completed"
           codesign -dv "$APP_PATH" 2>&1 || true
 
