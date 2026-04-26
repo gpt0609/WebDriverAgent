@@ -15,10 +15,57 @@
 #import <WebDriverAgentLib/XCTestCase.h>
 #import <UIKit/UIKit.h>
 
+@interface UITestingUITests : FBFailureProofTestCase <FBWebServerDelegate>
+@end
+
 static FBWebServer *_sharedWebServer = nil;
 static UIWindow *_statusWindow = nil;
 
-static void showAutomationRunningAlert() {
+@implementation UITestingUITests
+
++ (void)setUp
+{
+  [FBDebugLogDelegateDecorator decorateXCTestLogger];
+  [FBConfiguration disableRemoteQueryEvaluation];
+  [FBConfiguration configureDefaultKeyboardPreferences];
+  [FBConfiguration disableApplicationUIInterruptionsHandling];
+  if (NSProcessInfo.processInfo.environment[@"ENABLE_AUTOMATIC_SCREEN_RECORDINGS"]) {
+    [FBConfiguration enableScreenRecordings];
+  } else {
+    [FBConfiguration disableScreenRecordings];
+  }
+  if (NSProcessInfo.processInfo.environment[@"ENABLE_AUTOMATIC_SCREENSHOTS"]) {
+    [FBConfiguration enableScreenshots];
+  } else {
+    [FBConfiguration disableScreenshots];
+  }
+  [super setUp];
+
+  if (_sharedWebServer == nil) {
+    _sharedWebServer = [[FBWebServer alloc] init];
+    UITestingUITests *delegateInstance = [[UITestingUITests alloc] init];
+    _sharedWebServer.delegate = delegateInstance;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      [_sharedWebServer startServing];
+    });
+    [UITestingUITests showAutomationRunningAlert];
+  }
+}
+
+- (void)testRunner
+{
+  if (_sharedWebServer == nil) {
+    _sharedWebServer = [[FBWebServer alloc] init];
+    _sharedWebServer.delegate = self;
+    [_sharedWebServer startServing];
+  } else {
+    NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
+    while (_sharedWebServer && [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
+  }
+}
+
++ (void)showAutomationRunningAlert
+{
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
@@ -55,7 +102,7 @@ static void showAutomationRunningAlert() {
     detailLabel.numberOfLines = 3;
     [alertBox addSubview:detailLabel];
 
-    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:[UITestingUITests class] action:@selector(dismissStatusAlert)];
+    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissStatusAlert)];
     [alertBox addGestureRecognizer:tapGesture];
 
     [vc.view addSubview:alertBox];
@@ -63,59 +110,17 @@ static void showAutomationRunningAlert() {
   });
 }
 
-@interface UITestingUITests : FBFailureProofTestCase <FBWebServerDelegate>
-@end
-
-@implementation UITestingUITests
-
-+ (void)setUp
++ (void)dismissStatusAlert
 {
-  [FBDebugLogDelegateDecorator decorateXCTestLogger];
-  [FBConfiguration disableRemoteQueryEvaluation];
-  [FBConfiguration configureDefaultKeyboardPreferences];
-  [FBConfiguration disableApplicationUIInterruptionsHandling];
-  if (NSProcessInfo.processInfo.environment[@"ENABLE_AUTOMATIC_SCREEN_RECORDINGS"]) {
-    [FBConfiguration enableScreenRecordings];
-  } else {
-    [FBConfiguration disableScreenRecordings];
-  }
-  if (NSProcessInfo.processInfo.environment[@"ENABLE_AUTOMATIC_SCREENSHOTS"]) {
-    [FBConfiguration enableScreenshots];
-  } else {
-    [FBConfiguration disableScreenshots];
-  }
-  [super setUp];
-
-  if (_sharedWebServer == nil) {
-    _sharedWebServer = [[FBWebServer alloc] init];
-    _sharedWebServer.delegate = self;
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-      [_sharedWebServer startServing];
-    });
-    showAutomationRunningAlert();
-  }
-}
-
-- (void)testRunner
-{
-  if (_sharedWebServer == nil) {
-    _sharedWebServer = [[FBWebServer alloc] init];
-    _sharedWebServer.delegate = self;
-    [_sharedWebServer startServing];
-  } else {
-    NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
-    while (_sharedWebServer && [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
-  }
-}
-
-+ (void)dismissStatusAlert {
-  [UIView animateWithDuration:0.3 animations:^{
-    _statusWindow.alpha = 0;
-  } completion:^(BOOL finished) {
-    [_statusWindow resignKeyWindow];
-    _statusWindow.hidden = YES;
-    _statusWindow = nil;
-  }];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [UIView animateWithDuration:0.3 animations:^{
+      _statusWindow.alpha = 0;
+    } completion:^(BOOL finished) {
+      [_statusWindow resignKeyWindow];
+      _statusWindow.hidden = YES;
+      _statusWindow = nil;
+    }];
+  });
 }
 
 #pragma mark - FBWebServerDelegate
