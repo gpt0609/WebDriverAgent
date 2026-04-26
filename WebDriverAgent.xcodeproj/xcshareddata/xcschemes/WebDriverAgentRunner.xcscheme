@@ -15,32 +15,13 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "EEF988291C486603005CA669"
-               BuildableName = "WebDriverAgentRunner.xctest"
+               BuildableName = "WebDriverAgentRunner.app"
                BlueprintName = "WebDriverAgentRunner"
                ReferencedContainer = "container:WebDriverAgent.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
-   <TestAction
-      buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = ""
-      selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
-      shouldUseLaunchSchemeArgsEnv = "YES"
-      systemAttachmentLifetime = "keepNever">
-      <Testables>
-         <TestableReference
-            skipped = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EEF988291C486603005CA669"
-               BuildableName = "WebDriverAgentRunner.xctest"
-               BlueprintName = "WebDriverAgentRunner"
-               ReferencedContainer = "container:WebDriverAgent.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
-   </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
@@ -51,15 +32,16 @@
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "EEF988291C486603005CA669"
-            BuildableName = "WebDriverAgentRunner.xctest"
+            BuildableName = "WebDriverAgentRunner.app"
             BlueprintName = "WebDriverAgentRunner"
             ReferencedContainer = "container:WebDriverAgent.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "USE_PORT"
@@ -94,15 +76,16 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "EEF988291C486603005CA669"
-            BuildableName = "WebDriverAgentRunner.xctest"
+            BuildableName = "WebDriverAgentRunner.app"
             BlueprintName = "WebDriverAgentRunner"
             ReferencedContainer = "container:WebDriverAgent.xcodeproj">
          </BuildableReference>
-      </MacroExpansion>
+      </BuildableProductRunnable>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
