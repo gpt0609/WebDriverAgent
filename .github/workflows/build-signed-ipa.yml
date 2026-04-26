@@ -15,6 +15,7 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-signed-ipa.yml'
+      - 'WebDriverAgentRunner/**'
 
 jobs:
   build:
@@ -60,7 +61,7 @@ jobs:
           cp $PROFILE_TEMP "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
           ls -la "$PROFILE_DIR/"
 
-      - name: Update Bundle ID
+      - name: Update Bundle ID and Project
         run: |
           BUNDLE_ID="${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}"
           echo "Updating bundle ID to: $BUNDLE_ID"
@@ -68,6 +69,83 @@ jobs:
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
+
+      - name: Patch Xcode Project for Standalone App
+        run: |
+          set -x
+          python3 -c "
+          import subprocess, sys
+          pbx = 'WebDriverAgent.xcodeproj/project.pbxproj'
+          with open(pbx, 'r') as f:
+              content = f.read()
+
+          # Add main.m and FBWDAAppDelegate.m to the compile sources
+          # Find the UITestingUITests.m reference and add our files after it
+          if 'main.m' not in content:
+              # Find a unique PBXFileReference line to use as template
+              import uuid
+              def gen_uuid():
+                  return ''.join(uuid.uuid4().hex[:24].upper())
+
+              main_ref = gen_uuid()
+              appdelegate_ref = gen_uuid()
+              main_build = gen_uuid()
+              appdelegate_build = gen_uuid()
+
+              # Add PBXFileReference entries
+              file_ref_section = content.find('/* Begin PBXFileReference section */')
+              if file_ref_section == -1:
+                  print('ERROR: Cannot find PBXFileReference section')
+                  sys.exit(1)
+              insert_pos = content.find('\n', file_ref_section) + 1
+              new_refs = f'\t\t{main_ref} /* main.m */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = \"<group>\"; }};\n'
+              new_refs += f'\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBWDAAppDelegate.m; sourceTree = \"<group>\"; }};\n'
+              content = content[:insert_pos] + new_refs + content[insert_pos:]
+
+              # Add to PBXGroup (WebDriverAgentRunner group)
+              # Find the group that contains UITestingUITests.m
+              uitest_ref_match = None
+              for line in content.split('\n'):
+                  if 'UITestingUITests.m' in line and 'PBXFileReference' in line:
+                      uitest_ref_match = line.strip().split(' ')[0]
+                      break
+
+              if uitest_ref_match:
+                  # Find the children array that contains this ref
+                  search_str = f'{uitest_ref_match} /* UITestingUITests.m */'
+                  group_pos = content.find(search_str)
+                  if group_pos != -1:
+                      # Add after UITestingUITests.m in the children array
+                      insert_pos = content.find('\n', group_pos) 
+                      new_children = f',\n\t\t\t\t{main_ref} /* main.m */,\n\t\t\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */'
+                      content = content[:insert_pos] + new_children + content[insert_pos:]
+
+              # Add PBXBuildFile entries
+              build_file_section = content.find('/* Begin PBXBuildFile section */')
+              if build_file_section == -1:
+                  print('ERROR: Cannot find PBXBuildFile section')
+                  sys.exit(1)
+              insert_pos = content.find('\n', build_file_section) + 1
+              new_builds = f'\t\t{main_build} /* main.m in Sources */ = {{isa = PBXBuildFile; fileRef = {main_ref} /* main.m */; }};\n'
+              new_builds += f'\t\t{appdelegate_build} /* FBWDAAppDelegate.m in Sources */ = {{isa = PBXBuildFile; fileRef = {appdelegate_ref} /* FBWDAAppDelegate.m */; }};\n'
+              content = content[:insert_pos] + new_builds + content[insert_pos:]
+
+              # Add to PBXSourcesBuildPhase
+              sources_section = content.find('/* Begin PBXSourcesBuildPhase section */')
+              if sources_section != -1:
+                  # Find the files array in the first build phase
+                  files_pos = content.find('files = (', sources_section)
+                  if files_pos != -1:
+                      insert_pos = content.find('\n', files_pos) + 1
+                      new_sources = f'\t\t\t\t{main_build} /* main.m in Sources */,\n\t\t\t\t{appdelegate_build} /* FBWDAAppDelegate.m in Sources */,\n'
+                      content = content[:insert_pos] + new_sources + content[insert_pos:]
+
+              with open(pbx, 'w') as f:
+                  f.write(content)
+              print('Successfully patched project.pbxproj')
+          else:
+              print('main.m already in project, skipping patch')
+          "
 
       - name: Build WDA
         id: build
