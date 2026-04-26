@@ -124,21 +124,18 @@ jobs:
               print('WARNING: Could not find WebDriverAgentRunner group')
 
           # 4. Add to PBXSourcesBuildPhase for WebDriverAgentRunner target
-          # The FIRST Sources build phase (641EE2D62240BBE300173FCB) is the xctest runner
-          # We need to add our files there so they compile into the runner executable
-          sources_pattern = r'(\/\* Sources \*\/ = \{[^}]*?files = \()'
-          matches = list(re.finditer(sources_pattern, content, re.DOTALL))
-          if matches:
-              # Use the FIRST match (WebDriverAgentRunner's xctest sources phase)
-              match = matches[0]
+          # EEF988261C486603005CA669 is the Sources build phase for WebDriverAgentRunner
+          runner_sources_id = 'EEF988261C486603005CA669'
+          runner_sources_pattern = f'{runner_sources_id}.*?files = \\('
+          match = re.search(runner_sources_pattern, content, re.DOTALL)
+          if match:
               insert_pos = match.end()
               content = content[:insert_pos] + '\n' + \
-                  f'\t\t\t\t{main_build} /* main.m in Sources */,' + '\n' + \
-                  f'\t\t\t\t{appdelegate_build} /* FBWDAAppDelegate.m in Sources */,' + \
+                  f'\t\t\t\t{main_build} /* main.m in Sources */,' + \
                   content[insert_pos:]
-              print(f'Added files to first Sources build phase (xctest runner)')
+              print(f'Added main.m to WebDriverAgentRunner Sources build phase')
           else:
-              print('WARNING: Could not find Sources build phase')
+              print('WARNING: Could not find WebDriverAgentRunner Sources build phase')
 
           with open(pbx_path, 'w') as f:
               f.write(content)
