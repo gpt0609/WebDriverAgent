@@ -61,7 +61,7 @@ jobs:
           cp $PROFILE_TEMP "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
           ls -la "$PROFILE_DIR/"
 
-      - name: Update Bundle ID and Project
+      - name: Update Bundle ID
         run: |
           BUNDLE_ID="${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}"
           echo "Updating bundle ID to: $BUNDLE_ID"
@@ -69,87 +69,6 @@ jobs:
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
-
-      - name: Patch Xcode Project for Standalone App
-        run: |
-          set -x
-          PBX=WebDriverAgent.xcodeproj/project.pbxproj
-          python3 << 'PYEOF'
-          import sys, re, uuid
-
-          pbx_path = 'WebDriverAgent.xcodeproj/project.pbxproj'
-          with open(pbx_path, 'r') as f:
-              content = f.read()
-
-          if 'main.m' in content and 'FBWDAAppDelegate.m' in content:
-              print('Files already in project, skipping patch')
-              sys.exit(0)
-
-          def gen_id():
-              return uuid.uuid4().hex[:24].upper()
-
-          main_ref = gen_id()
-          appdelegate_ref = gen_id()
-          main_build = gen_id()
-          appdelegate_build = gen_id()
-
-          # 1. Add PBXFileReference entries
-          section = '/* Begin PBXFileReference section */'
-          pos = content.index(section) + len(section)
-          content = content[:pos] + '\n' + \
-              f'\t\t{main_ref} /* main.m */ = {{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = WebDriverAgentRunner/main.m; sourceTree = SOURCE_ROOT; }};' + '\n' + \
-              f'\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */ = {{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FBWDAAppDelegate.m; path = WebDriverAgentRunner/FBWDAAppDelegate.m; sourceTree = SOURCE_ROOT; }};' + \
-              content[pos:]
-
-          # 2. Add PBXBuildFile entries
-          section = '/* Begin PBXBuildFile section */'
-          pos = content.index(section) + len(section)
-          content = content[:pos] + '\n' + \
-              f'\t\t{main_build} /* main.m in Sources */ = {{isa = PBXBuildFile; fileRef = {main_ref} /* main.m */; }};' + '\n' + \
-              f'\t\t{appdelegate_build} /* FBWDAAppDelegate.m in Sources */ = {{isa = PBXBuildFile; fileRef = {appdelegate_ref} /* FBWDAAppDelegate.m */; }};' + \
-              content[pos:]
-
-          # 3. Add to WebDriverAgentRunner group children
-          # Find the group that has UITestingUITests.m in its children
-          runner_group_pattern = r'(\/\* WebDriverAgentRunner \*\/ = \{[^}]*?children = \()'
-          match = re.search(runner_group_pattern, content, re.DOTALL)
-          if match:
-              insert_pos = match.end()
-              content = content[:insert_pos] + '\n' + \
-                  f'\t\t\t\t{main_ref} /* main.m */,' + '\n' + \
-                  f'\t\t\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */,' + \
-                  content[insert_pos:]
-              print(f'Added files to WebDriverAgentRunner group')
-          else:
-              print('WARNING: Could not find WebDriverAgentRunner group')
-
-          # 4. Add to PBXSourcesBuildPhase for WebDriverAgentRunner target
-          # EEF988261C486603005CA669 is the Sources build phase for WebDriverAgentRunner
-          runner_sources_id = 'EEF988261C486603005CA669'
-          runner_sources_pattern = f'{runner_sources_id}.*?files = \\('
-          match = re.search(runner_sources_pattern, content, re.DOTALL)
-          if match:
-              insert_pos = match.end()
-              content = content[:insert_pos] + '\n' + \
-                  f'\t\t\t\t{main_build} /* main.m in Sources */,' + \
-                  content[insert_pos:]
-              print(f'Added main.m to WebDriverAgentRunner Sources build phase')
-          else:
-              print('WARNING: Could not find WebDriverAgentRunner Sources build phase')
-
-          with open(pbx_path, 'w') as f:
-              f.write(content)
-
-          print(f'main_ref={main_ref}')
-          print(f'appdelegate_ref={appdelegate_ref}')
-          print(f'main_build={main_build}')
-          print(f'appdelegate_build={appdelegate_build}')
-          print('Successfully patched project.pbxproj')
-          PYEOF
-
-          # Verify the patch
-          grep -c "main.m" "$PBX" || echo "WARNING: main.m not found in project"
-          grep -c "FBWDAAppDelegate.m" "$PBX" || echo "WARNING: FBWDAAppDelegate.m not found in project"
 
       - name: Build WDA
         id: build

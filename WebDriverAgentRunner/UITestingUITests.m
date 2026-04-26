@@ -15,44 +15,21 @@
 #import <WebDriverAgentLib/XCTestCase.h>
 #import <UIKit/UIKit.h>
 
-@interface FBWDAAppDelegate : NSObject <UIApplicationDelegate, FBWebServerDelegate>
-@property (nonatomic, strong) FBWebServer *webServer;
-@property (nonatomic, strong) UIWindow *statusWindow;
-@end
+static FBWebServer *_sharedWebServer = nil;
+static UIWindow *_statusWindow = nil;
 
-@implementation FBWDAAppDelegate
-
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  [FBDebugLogDelegateDecorator decorateXCTestLogger];
-  [FBConfiguration disableRemoteQueryEvaluation];
-  [FBConfiguration configureDefaultKeyboardPreferences];
-  [FBConfiguration disableApplicationUIInterruptionsHandling];
-  [FBConfiguration disableScreenRecordings];
-  [FBConfiguration disableScreenshots];
-
-  self.webServer = [[FBWebServer alloc] init];
-  self.webServer.delegate = self;
-
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    [self.webServer startServing];
-  });
-
-  [self showAutomationRunningAlert];
-  return YES;
-}
-
-- (void)showAutomationRunningAlert {
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+static void showAutomationRunningAlert() {
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
 
-    self.statusWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
-    self.statusWindow.windowLevel = UIWindowLevelStatusBar + 1;
-    self.statusWindow.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.5];
+    _statusWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
+    _statusWindow.windowLevel = UIWindowLevelStatusBar + 1;
+    _statusWindow.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.5];
 
     UIViewController *vc = [[UIViewController alloc] init];
     vc.view.backgroundColor = [UIColor clearColor];
-    self.statusWindow.rootViewController = vc;
+    _statusWindow.rootViewController = vc;
 
     UIView *alertBox = [[UIView alloc] initWithFrame:CGRectMake((screenWidth - 280) / 2, (screenHeight - 130) / 2, 280, 130)];
     alertBox.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.97];
@@ -78,29 +55,13 @@
     detailLabel.numberOfLines = 3;
     [alertBox addSubview:detailLabel];
 
-    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissAlert)];
+    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:[UITestingUITests class] action:@selector(dismissStatusAlert)];
     [alertBox addGestureRecognizer:tapGesture];
 
     [vc.view addSubview:alertBox];
-    [self.statusWindow makeKeyAndVisible];
+    [_statusWindow makeKeyAndVisible];
   });
 }
-
-- (void)dismissAlert {
-  [UIView animateWithDuration:0.3 animations:^{
-    self.statusWindow.alpha = 0;
-  } completion:^(BOOL finished) {
-    [self.statusWindow resignKeyWindow];
-    self.statusWindow.hidden = YES;
-    self.statusWindow = nil;
-  }];
-}
-
-- (void)webServerDidRequestShutdown:(FBWebServer *)webServer {
-  [webServer stopServing];
-}
-
-@end
 
 @interface UITestingUITests : FBFailureProofTestCase <FBWebServerDelegate>
 @end
@@ -124,13 +85,37 @@
     [FBConfiguration disableScreenshots];
   }
   [super setUp];
+
+  if (_sharedWebServer == nil) {
+    _sharedWebServer = [[FBWebServer alloc] init];
+    _sharedWebServer.delegate = self;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      [_sharedWebServer startServing];
+    });
+    showAutomationRunningAlert();
+  }
 }
 
 - (void)testRunner
 {
-  FBWebServer *webServer = [[FBWebServer alloc] init];
-  webServer.delegate = self;
-  [webServer startServing];
+  if (_sharedWebServer == nil) {
+    _sharedWebServer = [[FBWebServer alloc] init];
+    _sharedWebServer.delegate = self;
+    [_sharedWebServer startServing];
+  } else {
+    NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
+    while (_sharedWebServer && [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
+  }
+}
+
++ (void)dismissStatusAlert {
+  [UIView animateWithDuration:0.3 animations:^{
+    _statusWindow.alpha = 0;
+  } completion:^(BOOL finished) {
+    [_statusWindow resignKeyWindow];
+    _statusWindow.hidden = YES;
+    _statusWindow = nil;
+  }];
 }
 
 #pragma mark - FBWebServerDelegate
