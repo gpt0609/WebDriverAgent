@@ -78,7 +78,7 @@ static UIWindow *_statusWindow = nil;
     alertBox.clipsToBounds = YES;
     alertBox.layer.shadowColor = [UIColor blackColor].CGColor;
     alertBox.layer.shadowOffset = CGSizeMake(0, 4);
-    alertBox.layer.shadowOpacity = 0.3;
+    alertBox.layer.shadowOpacity = 0.3f;
     alertBox.layer.shadowRadius = 12;
 
     UIView *greenDot = [[UIView alloc] initWithFrame:CGRectMake(20, 20, 12, 12)];
