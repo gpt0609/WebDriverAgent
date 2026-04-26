@@ -28,6 +28,19 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.4.app
 
+      - name: Verify Project Configuration
+        run: |
+          echo "=== Checking WebDriverAgentRunner target type ==="
+          grep -A2 "WebDriverAgentRunner \*/" WebDriverAgent.xcodeproj/project.pbxproj | grep productType || true
+          echo "=== Checking Info.plist ==="
+          cat WebDriverAgentRunner/Info.plist
+          echo "=== Checking main.m ==="
+          cat WebDriverAgentRunner/main.m
+          echo "=== Checking FBWDAAppDelegate.m exists ==="
+          ls -la WebDriverAgentRunner/FBWDAAppDelegate.m
+          echo "=== Checking scheme ==="
+          cat WebDriverAgent.xcodeproj/xcshareddata/xcschemes/WebDriverAgentRunner.xcscheme | grep -E "BuildableName|TestAction" || true
+
       - name: Install Certificate and Profile
         env:
           CERT_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
@@ -96,6 +109,12 @@ jobs:
           ls -la "$APP_PATH/"
           echo "Frameworks:"
           ls -la "$APP_PATH/Frameworks/" 2>/dev/null || echo "No Frameworks directory"
+          echo "Executable:"
+          file "$APP_PATH/WebDriverAgentRunner" 2>/dev/null || true
+          echo "Checking for FBWDAAppDelegate symbol:"
+          nm "$APP_PATH/WebDriverAgentRunner" 2>/dev/null | grep -i "FBWDAAppDelegate" || echo "No FBWDAAppDelegate symbol found"
+          echo "Checking for main symbol:"
+          nm "$APP_PATH/WebDriverAgentRunner" 2>/dev/null | grep -i " _main$" || echo "No main symbol found"
 
       - name: Embed Provisioning Profile
         run: |
