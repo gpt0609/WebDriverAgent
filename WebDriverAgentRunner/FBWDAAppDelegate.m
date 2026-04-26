@@ -3,7 +3,6 @@
 #import <WebDriverAgentLib/FBConfiguration.h>
 #import <WebDriverAgentLib/FBDebugLogDelegateDecorator.h>
 #import <WebDriverAgentLib/FBLogger.h>
-#import <XCTest/XCTest.h>
 
 static FBWebServer *_sharedWebServer = nil;
 static UIWindow *_statusWindow = nil;
@@ -15,7 +14,6 @@ static UIWindow *_statusWindow = nil;
 @implementation FBWDAAppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-
   self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
   self.window.backgroundColor = [UIColor whiteColor];
   UIViewController *rootVC = [[UIViewController alloc] init];
@@ -38,16 +36,45 @@ static UIWindow *_statusWindow = nil;
   _sharedWebServer = [[FBWebServer alloc] init];
   _sharedWebServer.delegate = self;
 
-  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    [_sharedWebServer startServing];
-  });
-
-  [FBLogger logFmt:@"WDA started via app icon tap. HTTP server should be running on port 8100."];
-  NSLog(@"[WDA] WebDriverAgent server starting... HTTP on port 8100");
+  [self startWebServerWithoutRunLoop];
 
   [self showAutomationRunningAlert];
 
   return YES;
+}
+
+- (void)startWebServerWithoutRunLoop {
+  @try {
+    SEL startHTTPSelector = NSSelectorFromString(@"startHTTPServer");
+    SEL initScreenshotsSelector = NSSelectorFromString(@"initScreenshotsBroadcaster");
+
+    if ([_sharedWebServer respondsToSelector:startHTTPSelector]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+      [_sharedWebServer performSelector:startHTTPSelector];
+#pragma clang diagnostic pop
+      NSLog(@"[WDA] HTTP server started via startHTTPServer");
+    } else {
+      NSLog(@"[WDA] startHTTPServer not found, falling back to background startServing");
+      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [_sharedWebServer startServing];
+      });
+      return;
+    }
+
+    if ([_sharedWebServer respondsToSelector:initScreenshotsSelector]) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+      [_sharedWebServer performSelector:initScreenshotsSelector];
+#pragma clang diagnostic pop
+      NSLog(@"[WDA] Screenshots broadcaster initialized");
+    }
+  } @catch (NSException *e) {
+    NSLog(@"[WDA] Exception during server start: %@", e);
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      [_sharedWebServer startServing];
+    });
+  }
 }
 
 - (void)showAutomationRunningAlert {
@@ -93,7 +120,7 @@ static UIWindow *_statusWindow = nil;
     titleLabel.textColor = [UIColor blackColor];
     [alertBox addSubview:titleLabel];
 
-    UIView *divider = [[UIView alloc] initWithFrame:CGRectMake(0, 50, boxW, 0.5)];
+    UIView *divider = [[UIView alloc] initWithFrame:CGRectMake(0, 50, boxW, 0.5f)];
     divider.backgroundColor = [UIColor colorWithWhite:0.85 alpha:1.0];
     [alertBox addSubview:divider];
 
@@ -126,6 +153,8 @@ static UIWindow *_statusWindow = nil;
     }];
   });
 }
+
+#pragma mark - FBWebServerDelegate
 
 - (void)webServerDidRequestShutdown:(FBWebServer *)webServer {
   [webServer stopServing];
