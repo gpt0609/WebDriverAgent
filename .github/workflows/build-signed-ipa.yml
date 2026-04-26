@@ -97,8 +97,8 @@ jobs:
           section = '/* Begin PBXFileReference section */'
           pos = content.index(section) + len(section)
           content = content[:pos] + '\n' + \
-              f'\t\t{main_ref} /* main.m */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; }};' + '\n' + \
-              f'\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */ = {{isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBWDAAppDelegate.m; sourceTree = "<group>"; }};' + \
+              f'\t\t{main_ref} /* main.m */ = {{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = WebDriverAgentRunner/main.m; sourceTree = SOURCE_ROOT; }};' + '\n' + \
+              f'\t\t{appdelegate_ref} /* FBWDAAppDelegate.m */ = {{isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FBWDAAppDelegate.m; path = WebDriverAgentRunner/FBWDAAppDelegate.m; sourceTree = SOURCE_ROOT; }};' + \
               content[pos:]
 
           # 2. Add PBXBuildFile entries
