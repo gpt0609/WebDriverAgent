@@ -93,6 +93,10 @@ jobs:
           
           sed -i '' 's/EEF988291C486603005CA669 = {/EEF988291C486603005CA669 = {\
             ProvisioningStyle = Manual;/g' WebDriverAgent.xcodeproj/project.pbxproj
+          
+          echo "=== Verifying Bundle ID changes ==="
+          grep "PRODUCT_BUNDLE_IDENTIFIER" WebDriverAgent.xcodeproj/project.pbxproj | grep -v "tvOS\|Lib\|Test\|Integration" | head -5
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" WebDriverAgentRunner/Info.plist
 
       - name: Build WDA (Unsigned)
         run: |
@@ -104,17 +108,39 @@ jobs:
             -destination 'generic/platform=iOS' \
             -derivedDataPath wda_build \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ENABLE_TESTABILITY=NO \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
+            GCC_WARN_PEDANTIC=NO \
+            RUN_CLANG_STATIC_ANALYZER=NO \
             build 2>&1 | tee build.log
+          
+          echo ""
+          echo "=== Searching for .app bundle ==="
+          find wda_build -name "*.app" -type d 2>/dev/null
           
           APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
           echo "Found app: $APP_PATH"
           
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: No .app found!"
-            find wda_build -type d -name "*.app" 2>/dev/null || true
+            echo "=== Searching all build products ==="
+            find wda_build -type d \( -name "*.app" -o -name "*.xctest" -o -name "*.framework" \) 2>/dev/null || true
+            echo "=== Build log tail ==="
+            tail -50 build.log || true
             exit 1
           fi
+          
+          echo ""
+          echo "=== App bundle contents ==="
+          ls -la "$APP_PATH/"
+          
+          echo ""
+          echo "=== Info.plist check ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read CFBundleIdentifier"
+          /usr/libexec/PlistBuddy -c "Print :CFBundlePackageType" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read CFBundlePackageType"
+          /usr/libexec/PlistBuddy -c "Print :UIBackgroundModes" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read UIBackgroundModes"
 
       - name: Sign WDA with Dynamic Entitlements
         run: |
@@ -126,10 +152,8 @@ jobs:
           echo "App: $APP_PATH"
           echo "Profile UUID: $PROFILE_UUID"
           
-          # Copy provisioning profile
           cp ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision "$APP_PATH/embedded.mobileprovision"
           
-          # Extract entitlements from provisioning profile
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
           PROFILE_PLIST=$RUNNER_TEMP/profile.plist
           
@@ -139,7 +163,6 @@ jobs:
           echo "Extracted entitlements from profile:"
           cat $ENTITLEMENTS_PATH
           
-          # Force get-task-allow = true for WDA automation
           /usr/libexec/PlistBuddy -c "Add :get-task-allow bool true" $ENTITLEMENTS_PATH 2>/dev/null || \
             /usr/libexec/PlistBuddy -c "Set :get-task-allow true" $ENTITLEMENTS_PATH
           
@@ -147,35 +170,29 @@ jobs:
           echo "Final entitlements (with get-task-allow=true):"
           cat $ENTITLEMENTS_PATH
           
-          # Get signing identity
           SIGNING_IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/signing.keychain-db | head -1 | sed 's/.*"\(.*\)".*/\1/')
           echo "Signing identity: $SIGNING_IDENTITY"
           
-          # Sign frameworks recursively (inner to outer)
           FRAMEWORKS_DIR="$APP_PATH/Frameworks"
           if [ -d "$FRAMEWORKS_DIR" ]; then
             echo "Signing nested frameworks..."
             
-            # Sign nested frameworks first
             find "$FRAMEWORKS_DIR" -name "*.framework" -type d -depth 2 2>/dev/null | while read fw; do
               echo "  Signing nested: $(basename $fw)"
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
             done
             
-            # Sign dylibs inside frameworks
             find "$FRAMEWORKS_DIR" -name "*.dylib" -type f 2>/dev/null | while read dylib; do
               echo "  Signing dylib: $(basename $dylib)"
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$dylib"
             done
             
-            # Sign top-level frameworks
             find "$FRAMEWORKS_DIR" -name "*.framework" -type d -depth 1 2>/dev/null | while read fw; do
               echo "  Signing framework: $(basename $fw)"
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
             done
           fi
           
-          # Sign PlugIns (xctest bundles)
           PLUGINS_DIR="$APP_PATH/PlugIns"
           if [ -d "$PLUGINS_DIR" ]; then
             find "$PLUGINS_DIR" -name "*.xctest" -type d 2>/dev/null | while read xctest; do
@@ -184,7 +201,6 @@ jobs:
             done
           fi
           
-          # Sign main app with entitlements
           echo "Signing main app with entitlements..."
           codesign --force --sign "$SIGNING_IDENTITY" \
             --entitlements $ENTITLEMENTS_PATH \
@@ -213,11 +229,31 @@ jobs:
             if echo "$ENTITLEMENTS" | grep -A1 "get-task-allow" | grep -q "true"; then
               echo "✓ get-task-allow = true"
             else
-              echo "✗ get-task-allow is NOT true (WDA automation will NOT work!)"
+              echo "✗ get-task-allow is NOT true"
             fi
           else
             echo "✗ get-task-allow not found in entitlements"
           fi
+          
+          echo ""
+          echo "=== Bundle ID Check ==="
+          ACTUAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" 2>/dev/null)
+          echo "Bundle ID: $ACTUAL_BUNDLE_ID"
+          if echo "$ACTUAL_BUNDLE_ID" | grep -q "xctrunner"; then
+            echo "✗ ERROR: Bundle ID contains .xctrunner suffix!"
+          else
+            echo "✓ Bundle ID has no .xctrunner suffix"
+          fi
+          
+          echo ""
+          echo "=== UIBackgroundModes Check ==="
+          BG_MODES=$(/usr/libexec/PlistBuddy -c "Print :UIBackgroundModes" "$APP_PATH/Info.plist" 2>/dev/null || echo "MISSING")
+          echo "UIBackgroundModes: $BG_MODES"
+          
+          echo ""
+          echo "=== Package Type Check ==="
+          PKG_TYPE=$(/usr/libexec/PlistBuddy -c "Print :CFBundlePackageType" "$APP_PATH/Info.plist" 2>/dev/null || echo "MISSING")
+          echo "CFBundlePackageType: $PKG_TYPE"
           
           echo ""
           echo "=== Provisioning Profile Check ==="
@@ -225,15 +261,6 @@ jobs:
             echo "✓ embedded.mobileprovision exists"
             PROFILE_SIZE=$(wc -c < "$APP_PATH/embedded.mobileprovision")
             echo "  Size: $PROFILE_SIZE bytes"
-            
-            DEVICES=$(security cms -D -i "$APP_PATH/embedded.mobileprovision" 2>/dev/null | \
-              /usr/libexec/PlistBuddy -c "Print :ProvisionedDevices" /dev/stdin 2>/dev/null || echo "none")
-            if [ "$DEVICES" != "none" ]; then
-              echo "  Devices in profile:"
-              echo "$DEVICES" | grep "UDID" || true
-            else
-              echo "  Enterprise profile (all devices)"
-            fi
           else
             echo "✗ embedded.mobileprovision MISSING"
           fi
