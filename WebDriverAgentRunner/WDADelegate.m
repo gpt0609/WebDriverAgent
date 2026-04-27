@@ -4,6 +4,9 @@
 #import <WebDriverAgentLib/FBDebugLogDelegateDecorator.h>
 #import <AVFoundation/AVFoundation.h>
 #import <CoreLocation/CoreLocation.h>
+#import <arpa/inet.h>
+#import <ifaddrs.h>
+#import <net/if.h>
 
 @interface WDADelegate () <FBWebServerDelegate, CLLocationManagerDelegate>
 @property (nonatomic, strong) FBWebServer *webServer;
@@ -50,9 +53,8 @@
         [self.webServer startServing];
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSRange serverPortRange = FBConfiguration.bindingPortRange;
-            NSInteger port = serverPortRange.location;
-            NSString *ip = [XCUIDevice sharedDevice].fb_wifiIPAddress ?: @"127.0.0.1";
+            NSInteger port = FBConfiguration.bindingPortRange.location;
+            NSString *ip = [self getWiFiIPAddress] ?: @"127.0.0.1";
             self.statusLabel.text = [NSString stringWithFormat:@"WDA Running: %@:%ld", ip, (long)port];
             self.statusLabel.textColor = [UIColor greenColor];
         });
@@ -91,6 +93,27 @@
         self.audioPlayer.volume = 0.0;
         [self.audioPlayer play];
     }
+}
+
+- (NSString *)getWiFiIPAddress
+{
+    NSString *address = nil;
+    struct ifaddrs *interfaces = NULL;
+    struct ifaddrs *temp_addr = NULL;
+    int success = getifaddrs(&interfaces);
+    if (success == 0) {
+        temp_addr = interfaces;
+        while (temp_addr != NULL) {
+            if (temp_addr->ifa_addr->sa_family == AF_INET) {
+                if ([[NSString stringWithUTF8String:temp_addr->ifa_name] isEqualToString:@"en0"]) {
+                    address = [NSString stringWithUTF8String:inet_ntoa(((struct sockaddr_in *)temp_addr->ifa_addr)->sin_addr)];
+                }
+            }
+            temp_addr = temp_addr->ifa_next;
+        }
+    }
+    freeifaddrs(interfaces);
+    return address;
 }
 
 - (void)startLocationUpdates
