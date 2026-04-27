@@ -79,10 +79,16 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
   [self startHTTPServer];
   [self initScreenshotsBroadcaster];
 
-  self.keepAlive = YES;
-  NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
-  while (self.keepAlive &&
-         [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
+  BOOL isXCTestMode = (NSClassFromString(@"XCTestCase") != nil &&
+                       [NSProcessInfo.processInfo.environment[@"XCTestConfigurationFilePath"] length] > 0);
+  if (isXCTestMode) {
+    self.keepAlive = YES;
+    NSRunLoop *runLoop = [NSRunLoop mainRunLoop];
+    while (self.keepAlive &&
+           [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]);
+  } else {
+    [FBLogger log:@"WDA running in App mode - RunLoop managed by UIApplication"];
+  }
 }
 
 - (void)startHTTPServer
