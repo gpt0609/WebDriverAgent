@@ -829,7 +829,6 @@
 		AA0000020000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000001 /* main.m */; };
 		AA0000020000000000000003 /* WDADelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000003 /* WDADelegate.m */; };
 		AA0000020000000000000005 /* silent.wav in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000005 /* silent.wav */; };
-		AA0000020000000000000006 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000006 /* LaunchScreen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1419,7 +1418,6 @@
 		AA0000010000000000000003 /* WDADelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WDADelegate.m; sourceTree = "<group>"; };
 		AA0000010000000000000004 /* WebDriverAgentRunner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WebDriverAgentRunner.entitlements; sourceTree = "<group>"; };
 		AA0000010000000000000005 /* silent.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = silent.wav; sourceTree = "<group>"; };
-		AA0000010000000000000006 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -2307,7 +2305,6 @@
 				AA0000010000000000000003 /* WDADelegate.m */,
 				AA0000010000000000000004 /* WebDriverAgentRunner.entitlements */,
 				AA0000010000000000000005 /* silent.wav */,
-				AA0000010000000000000006 /* LaunchScreen.storyboard */,
 				EE9AB7FC1CAEE048008C271F /* Info.plist */,
 				EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */,
 			);
@@ -3127,7 +3124,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA0000020000000000000005 /* silent.wav in Resources */,
-				AA0000020000000000000006 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
