@@ -5,17 +5,14 @@ on:
     inputs:
       wda_bundle_id:
         description: 'WDA Bundle ID'
-        required: false
+        required: true
         default: 'app.honey4212.crystal5671'
+        type: string
       team_id:
         description: 'Apple Developer Team ID'
-        required: false
+        required: true
         default: '8R6WK6QAKF'
-  push:
-    branches: [master]
-    paths:
-      - '.github/workflows/build-signed-ipa.yml'
-      - 'WebDriverAgentRunner/**'
+        type: string
 
 jobs:
   build:
@@ -23,23 +20,13 @@ jobs:
     runs-on: macos-15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
-
-      - name: Verify Project Configuration
-        run: |
-          echo "=== Checking WebDriverAgentRunner target type ==="
-          grep -A2 "WebDriverAgentRunner \*/" WebDriverAgent.xcodeproj/project.pbxproj | grep productType || true
-          echo "=== Checking Info.plist ==="
-          cat WebDriverAgentRunner/Info.plist
-          echo "=== Checking main.m ==="
-          cat WebDriverAgentRunner/main.m
-          echo "=== Checking FBWDAAppDelegate.m exists ==="
-          ls -la WebDriverAgentRunner/FBWDAAppDelegate.m
-          echo "=== Checking scheme ==="
-          cat WebDriverAgent.xcodeproj/xcshareddata/xcschemes/WebDriverAgentRunner.xcscheme | grep -E "BuildableName|TestAction" || true
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
 
       - name: Install Certificate and Profile
         env:
@@ -48,129 +35,227 @@ jobs:
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
           set -x
+          
           KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
           KEYCHAIN_PWD="tempkeychain123"
+          
           security create-keychain -p "$KEYCHAIN_PWD" $KEYCHAIN_PATH || true
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PWD" $KEYCHAIN_PATH
+          
           CERT_PATH=$RUNNER_TEMP/cert.p12
           echo "$CERT_BASE64" | tr -d '\r\n' | base64 --decode > $CERT_PATH
           echo "Certificate file size: $(wc -c < $CERT_PATH) bytes"
+          
           CERT_PEM=$RUNNER_TEMP/cert.pem
           KEY_PEM=$RUNNER_TEMP/key.pem
           P12_NEW=$RUNNER_TEMP/cert_new.p12
+          
           openssl pkcs12 -in $CERT_PATH -clcerts -nokeys -passin pass:"$CERT_PASSWORD" -out $CERT_PEM || true
           openssl pkcs12 -in $CERT_PATH -nocerts -nodes -passin pass:"$CERT_PASSWORD" -out $KEY_PEM || true
           openssl pkcs12 -export -out $P12_NEW -inkey $KEY_PEM -in $CERT_PEM -passout pass:"$CERT_PASSWORD" || true
-          security import $P12_NEW -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/security
+          
+          security import $P12_NEW \
+            -P "$CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k $KEYCHAIN_PATH \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productsign \
+            -T /usr/bin/security
+          
           security list-keychain -d user -s $KEYCHAIN_PATH
           security find-identity -v -p codesigning $KEYCHAIN_PATH
+          
           PROFILE_DIR=~/Library/MobileDevice/Provisioning\ Profiles
           mkdir -p "$PROFILE_DIR"
+          
           PROFILE_TEMP=$RUNNER_TEMP/profile.mobileprovision
           echo "$PROFILE_BASE64" | tr -d '\r\n' | base64 --decode > $PROFILE_TEMP
-          PROFILE_UUID=$(security cms -D -i $PROFILE_TEMP 2>/dev/null | plutil -extract UUID raw -)
+          
+          PROFILE_UUID=$(security cms -D -i $PROFILE_TEMP 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "unknown")
           echo "Profile UUID: $PROFILE_UUID"
+          
           cp $PROFILE_TEMP "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          echo "Profile file size: $(wc -c < "$PROFILE_DIR/$PROFILE_UUID.mobileprovision") bytes"
           ls -la "$PROFILE_DIR/"
 
       - name: Update Bundle ID
         run: |
-          BUNDLE_ID="${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}"
-          echo "Updating bundle ID to: $BUNDLE_ID"
-          sed -i '' "s/com.facebook.WebDriverAgentRunner/$BUNDLE_ID/g" WebDriverAgent.xcodeproj/project.pbxproj
+          BUNDLE_ID="${{ inputs.wda_bundle_id }}"
+          
+          sed -i '' "s/com.facebook.WebDriverAgentRunner/${BUNDLE_ID}/g" WebDriverAgent.xcodeproj/project.pbxproj
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
+          
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
+          
+          sed -i '' 's/EEF988291C486603005CA669 = {/EEF988291C486603005CA669 = {\
+            ProvisioningStyle = Manual;/g' WebDriverAgent.xcodeproj/project.pbxproj
 
-      - name: Build WDA
-        id: build
+      - name: Build WDA (Unsigned)
         run: |
           set -o pipefail
           set -x
+          
           xcodebuild -project WebDriverAgent.xcodeproj \
             -scheme WebDriverAgentRunner \
             -destination 'generic/platform=iOS' \
-            -derivedDataPath build_out \
-            -configuration Release \
+            -derivedDataPath wda_build \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee build.log
-          echo "Searching for .app bundle..."
-          find build_out -name "*.app" -type d
-          APP_PATH=$(find build_out -name "*.app" -type d | grep -v "IntegrationApp" | head -1)
+          
+          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
+          echo "Found app: $APP_PATH"
+          
           if [ -z "$APP_PATH" ]; then
-            echo "ERROR: No .app found in build_out"
-            cat build.log | tail -200
+            echo "ERROR: No .app found!"
+            find wda_build -type d -name "*.app" 2>/dev/null || true
             exit 1
           fi
-          echo "Found app: $APP_PATH"
-          echo "APP_PATH=$APP_PATH" >> $GITHUB_OUTPUT
-          echo "App contents:"
-          ls -la "$APP_PATH/"
-          echo "Frameworks:"
-          ls -la "$APP_PATH/Frameworks/" 2>/dev/null || echo "No Frameworks directory"
-          echo "Executable:"
-          file "$APP_PATH/WebDriverAgentRunner" 2>/dev/null || true
-          echo "Checking for FBWDAAppDelegate symbol:"
-          nm "$APP_PATH/WebDriverAgentRunner" 2>/dev/null | grep -i "FBWDAAppDelegate" || echo "No FBWDAAppDelegate symbol found"
-          echo "Checking for main symbol:"
-          nm "$APP_PATH/WebDriverAgentRunner" 2>/dev/null | grep -i " _main$" || echo "No main symbol found"
 
-      - name: Embed Provisioning Profile
-        run: |
-          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
-          PROFILE_DIR=~/Library/MobileDevice/Provisioning\ Profiles
-          PROFILE_FILE=$(ls "$PROFILE_DIR"/*.mobileprovision 2>/dev/null | head -1)
-          if [ -n "$PROFILE_FILE" ]; then
-            echo "Copying profile: $PROFILE_FILE"
-            cp "$PROFILE_FILE" "$APP_PATH/embedded.mobileprovision"
-          else
-            echo "WARNING: No provisioning profile found in Profiles directory"
-          fi
-
-      - name: Create Entitlements Plist
+      - name: Sign WDA with Dynamic Entitlements
         run: |
           set -x
-          TEAM_ID="${{ github.event.inputs.team_id || '8R6WK6QAKF' }}"
-          BUNDLE_ID="${{ github.event.inputs.wda_bundle_id || 'app.honey4212.crystal5671' }}"
+          
+          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
+          PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/ | head -1 | sed 's/.mobileprovision//')
+          
+          echo "App: $APP_PATH"
+          echo "Profile UUID: $PROFILE_UUID"
+          
+          # Copy provisioning profile
+          cp ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision "$APP_PATH/embedded.mobileprovision"
+          
+          # Extract entitlements from provisioning profile
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          /usr/libexec/PlistBuddy -c "Add :application-identifier string ${TEAM_ID}.${BUNDLE_ID}" $ENTITLEMENTS_PATH
-          /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string ${TEAM_ID}" $ENTITLEMENTS_PATH
-          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool true" $ENTITLEMENTS_PATH
-          /usr/libexec/PlistBuddy -c "Add :keychain-access-groups array" $ENTITLEMENTS_PATH
-          /usr/libexec/PlistBuddy -c "Add :keychain-access-groups:0 string ${TEAM_ID}.${BUNDLE_ID}" $ENTITLEMENTS_PATH
-          echo "Entitlements content:"
+          security cms -D -i "$APP_PATH/embedded.mobileprovision" 2>/dev/null | \
+            /usr/libexec/PlistBuddy -x -c "Print :Entitlements" /dev/stdin > $ENTITLEMENTS_PATH
+          
+          echo "Extracted entitlements from profile:"
           cat $ENTITLEMENTS_PATH
+          
+          # Force get-task-allow = true for WDA automation
+          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool true" $ENTITLEMENTS_PATH 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :get-task-allow true" $ENTITLEMENTS_PATH
+          
+          echo ""
+          echo "Final entitlements (with get-task-allow=true):"
+          cat $ENTITLEMENTS_PATH
+          
+          # Get signing identity
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/signing.keychain-db | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Signing identity: $SIGNING_IDENTITY"
+          
+          # Sign frameworks recursively (inner to outer)
+          FRAMEWORKS_DIR="$APP_PATH/Frameworks"
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            echo "Signing nested frameworks..."
+            
+            # Sign nested frameworks first
+            find "$FRAMEWORKS_DIR" -name "*.framework" -type d -depth 2 2>/dev/null | while read fw; do
+              echo "  Signing nested: $(basename $fw)"
+              codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
+            done
+            
+            # Sign dylibs inside frameworks
+            find "$FRAMEWORKS_DIR" -name "*.dylib" -type f 2>/dev/null | while read dylib; do
+              echo "  Signing dylib: $(basename $dylib)"
+              codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$dylib"
+            done
+            
+            # Sign top-level frameworks
+            find "$FRAMEWORKS_DIR" -name "*.framework" -type d -depth 1 2>/dev/null | while read fw; do
+              echo "  Signing framework: $(basename $fw)"
+              codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
+            done
+          fi
+          
+          # Sign PlugIns (xctest bundles)
+          PLUGINS_DIR="$APP_PATH/PlugIns"
+          if [ -d "$PLUGINS_DIR" ]; then
+            find "$PLUGINS_DIR" -name "*.xctest" -type d 2>/dev/null | while read xctest; do
+              echo "  Signing xctest: $(basename $xctest)"
+              codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$xctest"
+            done
+          fi
+          
+          # Sign main app with entitlements
+          echo "Signing main app with entitlements..."
+          codesign --force --sign "$SIGNING_IDENTITY" \
+            --entitlements $ENTITLEMENTS_PATH \
+            --timestamp=none \
+            "$APP_PATH"
+          
+          echo "Signing completed"
 
-      - name: Sign App
+      - name: Verify Signing
         run: |
           set -x
-          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
-          ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          echo "Signing frameworks first..."
-          for framework in "$APP_PATH/Frameworks/"*.framework; do
-            if [ -d "$framework" ]; then
-              echo "Signing: $framework"
-              codesign --force --sign "iPhone Distribution" --timestamp "$framework"
+          
+          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
+          
+          echo "=== Signature Verification ==="
+          codesign --verify --deep --strict "$APP_PATH" 2>&1 && echo "✓ Signature valid" || echo "✗ Signature INVALID"
+          
+          echo ""
+          echo "=== Entitlements Check ==="
+          codesign -d --entitlements :- "$APP_PATH" 2>&1
+          
+          echo ""
+          echo "=== get-task-allow Check ==="
+          ENTITLEMENTS=$(codesign -d --entitlements :- "$APP_PATH" 2>&1)
+          if echo "$ENTITLEMENTS" | grep -q "get-task-allow"; then
+            if echo "$ENTITLEMENTS" | grep -A1 "get-task-allow" | grep -q "true"; then
+              echo "✓ get-task-allow = true"
+            else
+              echo "✗ get-task-allow is NOT true (WDA automation will NOT work!)"
             fi
-          done
-          echo "Signing app..."
-          codesign --force --sign "iPhone Distribution" --entitlements $ENTITLEMENTS_PATH --timestamp "$APP_PATH"
-          echo "Signing completed"
-          codesign -dv "$APP_PATH" 2>&1 || true
+          else
+            echo "✗ get-task-allow not found in entitlements"
+          fi
+          
+          echo ""
+          echo "=== Provisioning Profile Check ==="
+          if [ -f "$APP_PATH/embedded.mobileprovision" ]; then
+            echo "✓ embedded.mobileprovision exists"
+            PROFILE_SIZE=$(wc -c < "$APP_PATH/embedded.mobileprovision")
+            echo "  Size: $PROFILE_SIZE bytes"
+            
+            DEVICES=$(security cms -D -i "$APP_PATH/embedded.mobileprovision" 2>/dev/null | \
+              /usr/libexec/PlistBuddy -c "Print :ProvisionedDevices" /dev/stdin 2>/dev/null || echo "none")
+            if [ "$DEVICES" != "none" ]; then
+              echo "  Devices in profile:"
+              echo "$DEVICES" | grep "UDID" || true
+            else
+              echo "  Enterprise profile (all devices)"
+            fi
+          else
+            echo "✗ embedded.mobileprovision MISSING"
+          fi
+          
+          echo ""
+          echo "=== Detailed Signature Info ==="
+          codesign -dvvv "$APP_PATH" 2>&1 | head -20
 
       - name: Create IPA
         run: |
-          APP_PATH="${{ steps.build.outputs.APP_PATH }}"
+          APP_PATH=$(find wda_build -name "*.app" -type d | head -1)
+          echo "Found app: $APP_PATH"
+          
           if [ -z "$APP_PATH" ]; then
-            echo "No .app path available!"; exit 1; fi
-          rm -rf Payload
+            echo "No .app found!"
+            exit 1
+          fi
+          
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -r WebDriverAgent.ipa Payload
           ls -lh WebDriverAgent.ipa
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
         with:
           name: WebDriverAgent-Signed
           path: WebDriverAgent.ipa
