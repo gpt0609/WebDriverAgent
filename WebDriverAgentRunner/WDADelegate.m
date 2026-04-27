@@ -4,16 +4,23 @@
 #import <WebDriverAgentLib/FBDebugLogDelegateDecorator.h>
 #import <AVFoundation/AVFoundation.h>
 #import <CoreLocation/CoreLocation.h>
+#import <BackgroundTasks/BackgroundTasks.h>
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <net/if.h>
 
+static NSString *const kBGTaskIdentifier = @"com.apple.WebDriverAgent.background";
+
 @interface WDADelegate () <FBWebServerDelegate, CLLocationManagerDelegate>
 @property (nonatomic, strong) FBWebServer *webServer;
 @property (nonatomic, strong) AVAudioPlayer *audioPlayer;
+@property (nonatomic, strong) AVAudioEngine *audioEngine;
+@property (nonatomic, strong) AVAudioPlayerNode *audioPlayerNode;
 @property (nonatomic, strong) CLLocationManager *locationManager;
 @property (nonatomic, strong) UILabel *statusLabel;
+@property (nonatomic, strong) NSTimer *heartbeatTimer;
 @property (nonatomic, assign) UIBackgroundTaskIdentifier backgroundTask;
+@property (nonatomic, assign) NSInteger backgroundTaskRenewCount;
 @end
 
 @implementation WDADelegate
@@ -62,6 +69,12 @@
 
     [self startSilentAudio];
     [self startLocationUpdates];
+    [self registerBackgroundTask];
+    [self startHeartbeat];
+
+    if (@available(iOS 13.0, *)) {
+        [self registerBGTaskScheduler];
+    }
 
     return YES;
 }
@@ -72,12 +85,12 @@
     AVAudioSession *session = [AVAudioSession sharedInstance];
     [session setCategory:AVAudioSessionCategoryPlayback withOptions:AVAudioSessionCategoryOptionMixWithOthers error:&error];
     if (error) {
-        NSLog(@"Failed to set audio session category: %@", error);
+        NSLog(@"[WDA KeepAlive] Failed to set audio session category: %@", error);
         return;
     }
-    [session setActive:YES error:&error];
+    [session setActive:YES withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:&error];
     if (error) {
-        NSLog(@"Failed to activate audio session: %@", error);
+        NSLog(@"[WDA KeepAlive] Failed to activate audio session: %@", error);
         return;
     }
 
@@ -85,14 +98,173 @@
     if (silentPath) {
         NSURL *silentURL = [NSURL fileURLWithPath:silentPath];
         self.audioPlayer = [[AVAudioPlayer alloc] initWithContentsOfURL:silentURL error:&error];
-        if (error) {
-            NSLog(@"Failed to init audio player: %@", error);
+        if (self.audioPlayer) {
+            self.audioPlayer.numberOfLoops = -1;
+            self.audioPlayer.volume = 0.0;
+            [self.audioPlayer play];
+            NSLog(@"[WDA KeepAlive] Silent audio player started (file-based)");
             return;
         }
-        self.audioPlayer.numberOfLoops = -1;
-        self.audioPlayer.volume = 0.0;
-        [self.audioPlayer play];
     }
+
+    NSLog(@"[WDA KeepAlive] No silent.wav found, using AVAudioEngine generator");
+    [self startAudioEngineSilent];
+}
+
+- (void)startAudioEngineSilent
+{
+    if (@available(iOS 13.0, *)) {
+        self.audioEngine = [[AVAudioEngine alloc] init];
+        self.audioPlayerNode = [[AVAudioPlayerNode alloc] init];
+        [self.audioEngine attachNode:self.audioPlayerNode];
+
+        AVAudioMixerNode *mainMixer = self.audioEngine.mainMixerNode;
+        AVAudioFormat *format = [[AVAudioFormat alloc] initStandardFormatWithSampleRate:44100 channels:1];
+        [self.audioEngine connect:self.audioPlayerNode to:mainMixer format:format];
+
+        NSError *error = nil;
+        [self.audioEngine startAndReturnError:&error];
+        if (error) {
+            NSLog(@"[WDA KeepAlive] AVAudioEngine start failed: %@", error);
+            return;
+        }
+
+        AVAudioFrameCount frameCount = 44100;
+        AVAudioPCMBuffer *buffer = [[AVAudioPCMBuffer alloc] initWithPCMFormat:format frameCapacity:frameCount];
+        memset(buffer.floatChannelData[0], 0, frameCount * sizeof(float));
+        buffer.frameLength = frameCount;
+
+        [self.audioPlayerNode scheduleBuffer:buffer atTime:nil options:AVAudioPlayerNodeBufferLoops completionHandler:nil];
+        [self.audioPlayerNode play];
+        NSLog(@"[WDA KeepAlive] AVAudioEngine silent generator started");
+    }
+}
+
+- (void)startLocationUpdates
+{
+    self.locationManager = [[CLLocationManager alloc] init];
+    self.locationManager.delegate = self;
+    self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters;
+    self.locationManager.allowsBackgroundLocationUpdates = YES;
+    self.locationManager.pausesLocationUpdatesAutomatically = NO;
+    self.locationManager.showsBackgroundLocationIndicator = NO;
+    [self.locationManager requestAlwaysAuthorization];
+    [self.locationManager startUpdatingLocation];
+    [self.locationManager startMonitoringSignificantLocationChanges];
+    NSLog(@"[WDA KeepAlive] Location updates started");
+}
+
+- (void)registerBackgroundTask
+{
+    self.backgroundTask = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:^{
+        NSLog(@"[WDA KeepAlive] Background task expiring, attempting renewal...");
+        [self endBackgroundTask];
+        [self registerBackgroundTask];
+    }];
+    self.backgroundTaskRenewCount = 0;
+    NSLog(@"[WDA KeepAlive] Background task registered: %lu", (unsigned long)self.backgroundTask);
+}
+
+- (void)endBackgroundTask
+{
+    if (self.backgroundTask != UIBackgroundTaskInvalid) {
+        [[UIApplication sharedApplication] endBackgroundTask:self.backgroundTask];
+        self.backgroundTask = UIBackgroundTaskInvalid;
+    }
+}
+
+- (void)registerBGTaskScheduler
+{
+    if (@available(iOS 13.0, *)) {
+        [[BGTaskScheduler sharedScheduler] registerForTaskWithIdentifier:kBGTaskIdentifier
+                                                              usingQueue:nil
+                                                           launchHandler:^(__kindof BGTask * _Nonnull task) {
+            [self handleBGTask:task];
+        }];
+        NSLog(@"[WDA KeepAlive] BGTaskScheduler registered");
+    }
+}
+
+- (void)handleBGTask:(BGTask *)task API_AVAILABLE(ios(13.0))
+{
+    NSLog(@"[WDA KeepAlive] BGTask triggered: %@", task.identifier);
+
+    if ([task.identifier isEqualToString:kBGTaskIdentifier]) {
+        BGProcessingTask *processingTask = (BGProcessingTask *)task;
+        processingTask.expirationHandler = ^{
+            NSLog(@"[WDA KeepAlive] BGProcessingTask expiring");
+            [task setTaskCompletedWithSuccess:NO];
+        };
+
+        [self scheduleNextBGTask];
+
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [processingTask setTaskCompletedWithSuccess:YES];
+        });
+    }
+}
+
+- (void)scheduleNextBGTask
+{
+    if (@available(iOS 13.0, *)) {
+        BGProcessingTaskRequest *request = [[BGProcessingTaskRequest alloc] initWithIdentifier:kBGTaskIdentifier];
+        request.requiresNetworkConnectivity = NO;
+        request.requiresExternalPower = NO;
+        request.earliestBeginDate = [NSDate dateWithTimeIntervalSinceNow:300];
+
+        NSError *error = nil;
+        [[BGTaskScheduler sharedScheduler] submitTaskRequest:request error:&error];
+        if (error) {
+            NSLog(@"[WDA KeepAlive] BGTaskScheduler submit failed: %@", error);
+        } else {
+            NSLog(@"[WDA KeepAlive] Next BGTask scheduled in 5 min");
+        }
+    }
+}
+
+- (void)startHeartbeat
+{
+    self.heartbeatTimer = [NSTimer scheduledTimerWithTimeInterval:30.0
+                                                          target:self
+                                                        selector:@selector(heartbeatTick)
+                                                        userInfo:nil
+                                                         repeats:YES];
+    NSLog(@"[WDA KeepAlive] Heartbeat timer started (30s interval)");
+}
+
+- (void)heartbeatTick
+{
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    NSTimeInterval remaining = [[UIApplication sharedApplication] backgroundTimeRemaining];
+
+    if (state == UIApplicationStateBackground) {
+        self.backgroundTaskRenewCount++;
+
+        if (self.backgroundTaskRenewCount % 60 == 0) {
+            [self endBackgroundTask];
+            [self registerBackgroundTask];
+            NSLog(@"[WDA KeepAlive] Background task renewed (count: %ld)", (long)self.backgroundTaskRenewCount);
+        }
+
+        if (self.audioPlayer && !self.audioPlayer.playing) {
+            [self.audioPlayer play];
+            NSLog(@"[WDA KeepAlive] Audio player restarted");
+        }
+
+        if (@available(iOS 13.0, *)) {
+            if (self.audioEngine && !self.audioEngine.isRunning) {
+                NSError *error = nil;
+                [self.audioEngine startAndReturnError:&error];
+                if (!error) {
+                    [self.audioPlayerNode play];
+                    NSLog(@"[WDA KeepAlive] Audio engine restarted");
+                }
+            }
+        }
+    }
+
+    NSLog(@"[WDA KeepAlive] Heartbeat: state=%ld, bgRemaining=%.0fs, renewCount=%ld",
+          (long)state, remaining, (long)self.backgroundTaskRenewCount);
 }
 
 - (NSString *)getWiFiIPAddress
@@ -116,35 +288,42 @@
     return address;
 }
 
-- (void)startLocationUpdates
-{
-    self.locationManager = [[CLLocationManager alloc] init];
-    self.locationManager.delegate = self;
-    self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
-    self.locationManager.allowsBackgroundLocationUpdates = YES;
-    self.locationManager.pausesLocationUpdatesAutomatically = NO;
-    [self.locationManager requestAlwaysAuthorization];
-    [self.locationManager startUpdatingLocation];
-}
-
 - (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations
 {
 }
 
+- (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
+{
+    NSLog(@"[WDA KeepAlive] Location error: %@", error);
+}
+
 - (void)applicationDidEnterBackground:(UIApplication *)application
 {
-    self.backgroundTask = [application beginBackgroundTaskWithExpirationHandler:^{
-        [application endBackgroundTask:self.backgroundTask];
-        self.backgroundTask = UIBackgroundTaskInvalid;
-    }];
+    [self registerBackgroundTask];
+    [self scheduleNextBGTask];
+
+    if (self.audioPlayer && !self.audioPlayer.playing) {
+        [self.audioPlayer play];
+    }
+
+    NSLog(@"[WDA KeepAlive] Entered background - keepalive active");
 }
 
 - (void)applicationWillEnterForeground:(UIApplication *)application
 {
-    if (self.backgroundTask != UIBackgroundTaskInvalid) {
-        [application endBackgroundTask:self.backgroundTask];
-        self.backgroundTask = UIBackgroundTaskInvalid;
+    NSLog(@"[WDA KeepAlive] Entering foreground");
+}
+
+- (void)applicationWillTerminate:(UIApplication *)application
+{
+    [self endBackgroundTask];
+    [self.heartbeatTimer invalidate];
+    [self.locationManager stopUpdatingLocation];
+    [self.audioPlayer stop];
+    if (@available(iOS 13.0, *)) {
+        [self.audioEngine stop];
     }
+    NSLog(@"[WDA KeepAlive] App terminating");
 }
 
 #pragma mark - FBWebServerDelegate
