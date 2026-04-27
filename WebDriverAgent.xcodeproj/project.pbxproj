@@ -2309,7 +2309,7 @@
 				EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */,
 			);
 			name = WebDriverAgentRunner;
-			path = XCTUITestRunner;
+			path = WebDriverAgentRunner;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
