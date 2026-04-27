@@ -826,9 +826,9 @@
 		F59CD6D52EF16E5E00F91287 /* XCUIElement+FBCustomActions.m in Sources */ = {isa = PBXBuildFile; fileRef = F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */; };
 		F59CD6D62EF16E5E00F91287 /* XCUIElement+FBCustomActions.h in Headers */ = {isa = PBXBuildFile; fileRef = F59CD6D22EF16E5E00F91287 /* XCUIElement+FBCustomActions.h */; };
 		F59CD6D72EF16E5E00F91287 /* XCUIElement+FBCustomActions.m in Sources */ = {isa = PBXBuildFile; fileRef = F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */; };
-		A1B2C3D4E5F6001100000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = EE9B76871CF7997600275851 /* main.m */; };
-		A1B2C3D4E5F6001100000002 /* FBWDAAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */; };
-		A1B2C3D4E5F6001100000003 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7155B423224D5B980042A993 /* XCTest.framework */; };
+		AA0000020000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000001 /* main.m */; };
+		AA0000020000000000000003 /* WDADelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000003 /* WDADelegate.m */; };
+		AA0000020000000000000005 /* silent.wav in Resources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000005 /* silent.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1410,10 +1410,14 @@
 		EEE5CABF1C80361500CBBDD9 /* IOSSettings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = IOSSettings.xcconfig; sourceTree = "<group>"; };
 		EEE9B4701CD02B88009D2030 /* FBRunLoopSpinner.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FBRunLoopSpinner.h; sourceTree = "<group>"; };
 		EEE9B4711CD02B88009D2030 /* FBRunLoopSpinner.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FBRunLoopSpinner.m; sourceTree = "<group>"; };
-		EEF9882A1C486603005CA669 /* WebDriverAgentRunner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebDriverAgentRunner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WebDriverAgentRunner.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F59CD6D22EF16E5E00F91287 /* XCUIElement+FBCustomActions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "XCUIElement+FBCustomActions.h"; sourceTree = "<group>"; };
 		F59CD6D32EF16E5E00F91287 /* XCUIElement+FBCustomActions.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = "XCUIElement+FBCustomActions.m"; sourceTree = "<group>"; };
-		A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FBWDAAppDelegate.m; path = WebDriverAgentRunner/FBWDAAppDelegate.m; sourceTree = SOURCE_ROOT; };
+		AA0000010000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		AA0000010000000000000002 /* WDADelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WDADelegate.h; sourceTree = "<group>"; };
+		AA0000010000000000000003 /* WDADelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = WDADelegate.m; sourceTree = "<group>"; };
+		AA0000010000000000000004 /* WebDriverAgentRunner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WebDriverAgentRunner.entitlements; sourceTree = "<group>"; };
+		AA0000010000000000000005 /* silent.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = silent.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1502,7 +1506,6 @@
 			files = (
 				EE158B5A1CBD462100A3E3F0 /* WebDriverAgentLib.framework in Frameworks */,
 				716C9346224D540C004B8542 /* libxml2.tbd in Frameworks */,
-				A1B2C3D4E5F6001100000003 /* XCTest.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1627,7 +1630,7 @@
 			isa = PBXGroup;
 			children = (
 				EE836C021C0F118600D87246 /* UnitTests.xctest */,
-				EEF9882A1C486603005CA669 /* WebDriverAgentRunner.app */,
+				EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */,
 				EE158A991CBD452B00A3E3F0 /* WebDriverAgentLib.framework */,
 				EE9B75D41CF7956C00275851 /* IntegrationApp.app */,
 				EE9B75EC1CF7956C00275851 /* IntegrationTests_1.xctest */,
@@ -2297,13 +2300,16 @@
 		EEF988341C486655005CA669 /* WebDriverAgentRunner */ = {
 			isa = PBXGroup;
 			children = (
+				AA0000010000000000000001 /* main.m */,
+				AA0000010000000000000002 /* WDADelegate.h */,
+				AA0000010000000000000003 /* WDADelegate.m */,
+				AA0000010000000000000004 /* WebDriverAgentRunner.entitlements */,
+				AA0000010000000000000005 /* silent.wav */,
 				EE9AB7FC1CAEE048008C271F /* Info.plist */,
 				EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */,
-				EE9B76871CF7997600275851 /* main.m */,
-				A1B2C3D4E5F6001100000004 /* FBWDAAppDelegate.m */,
 			);
 			name = WebDriverAgentRunner;
-			path = WebDriverAgentRunner;
+			path = XCTUITestRunner;
 			sourceTree = SOURCE_ROOT;
 		};
 /* End PBXGroup section */
@@ -2979,9 +2985,9 @@
 				EE158B5C1CBD462500A3E3F0 /* PBXTargetDependency */,
 			);
 			name = WebDriverAgentRunner;
-			productName = WebDriverAgentRunner;
-			productReference = EEF9882A1C486603005CA669 /* WebDriverAgentRunner.app */;
-			productType = "com.apple.product-type.application";
+			productName = XCTUITestRunner;
+			productReference = EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -3117,6 +3123,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA0000020000000000000005 /* silent.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3514,8 +3521,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A1B2C3D4E5F6001100000001 /* main.m in Sources */,
-				A1B2C3D4E5F6001100000002 /* FBWDAAppDelegate.m in Sources */,
+				AA0000020000000000000001 /* main.m in Sources */,
+				AA0000020000000000000003 /* WDADelegate.m in Sources */,
+				EE9AB8011CAEE048008C271F /* UITestingUITests.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4356,12 +4364,18 @@
 			buildSettings = {
 				CLANG_STATIC_ANALYZER_MODE = deep;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = WebDriverAgentRunner/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = WebDriverAgentRunner/WebDriverAgentRunner.entitlements;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+					/Developer/Library/Frameworks,
+					/Developer/Library/PrivateFrameworks,
+					/System/Developer/Library/PrivateFrameworks,
+					/System/Developer/Library/Frameworks,
 				);
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -4402,12 +4416,18 @@
 			baseConfigurationReference = EEE5CABF1C80361500CBBDD9 /* IOSSettings.xcconfig */;
 			buildSettings = {
 				CLANG_STATIC_ANALYZER_MODE = deep;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
 				FRAMEWORK_SEARCH_PATHS = "$(inherited)";
 				INFOPLIST_FILE = WebDriverAgentRunner/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = WebDriverAgentRunner/WebDriverAgentRunner.entitlements;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+					/Developer/Library/Frameworks,
+					/Developer/Library/PrivateFrameworks,
+					/System/Developer/Library/PrivateFrameworks,
+					/System/Developer/Library/Frameworks,
 				);
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_LDFLAGS = (
