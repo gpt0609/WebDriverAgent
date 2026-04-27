@@ -131,8 +131,10 @@ jobs:
           
           # Extract entitlements from provisioning profile
           ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          security cms -D -i "$APP_PATH/embedded.mobileprovision" 2>/dev/null | \
-            /usr/libexec/PlistBuddy -x -c "Print :Entitlements" /dev/stdin > $ENTITLEMENTS_PATH
+          PROFILE_PLIST=$RUNNER_TEMP/profile.plist
+          
+          security cms -D -i "$APP_PATH/embedded.mobileprovision" > $PROFILE_PLIST 2>/dev/null
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" $PROFILE_PLIST > $ENTITLEMENTS_PATH
           
           echo "Extracted entitlements from profile:"
           cat $ENTITLEMENTS_PATH
