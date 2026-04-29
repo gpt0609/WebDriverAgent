@@ -64,10 +64,16 @@ jobs:
         if: inputs.build_only != true
         run: |
           echo "== Decoding certificate =="
-          echo "${{ secrets.WDA_P12_CERTIFICATE }}" | base64 -d > /tmp/cert.p12
+          printf '%s' "${{ secrets.WDA_P12_CERTIFICATE }}" | base64 -d > /tmp/cert.p12
+          echo "  P12 file size: $(wc -c < /tmp/cert.p12) bytes"
 
           echo "== Decoding provisioning profile =="
-          echo "${{ secrets.WDA_PROVISIONING_PROFILE }}" | base64 -d > /tmp/profile.mobileprovision
+          printf '%s' "${{ secrets.WDA_PROVISIONING_PROFILE }}" | base64 -d > /tmp/profile.mobileprovision
+          echo "  Profile file size: $(wc -c < /tmp/profile.mobileprovision) bytes"
+
+          echo "== Verifying p12 password =="
+          PASSWORD="${{ secrets.WDA_P12_PASSWORD }}"
+          echo "  Password length: ${#PASSWORD}"
 
           echo "== Creating entitlements =="
           cat > /tmp/entitlements.plist << 'PLISTEOF'
