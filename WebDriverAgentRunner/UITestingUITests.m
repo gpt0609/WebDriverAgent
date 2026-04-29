@@ -26,12 +26,11 @@ static BOOL _webServerStarted = NO;
 
 @implementation UITestingUITests
 
-+ (void)load
-{
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wobjc-load-method"
++ (void)load
+{
   [super load];
-#pragma clang diagnostic pop
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
     if (_sharedWebServer == nil && !_webServerStarted) {
       _webServerStarted = YES;
@@ -67,6 +66,7 @@ static BOOL _webServerStarted = NO;
     }
   });
 }
+#pragma clang diagnostic pop
 
 + (void)setUp
 {
