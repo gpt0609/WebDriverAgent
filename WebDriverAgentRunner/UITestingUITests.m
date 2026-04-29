@@ -198,7 +198,7 @@ static BOOL _webServerStarted = NO;
       _statusWindow.hidden = YES;
       _statusWindow = nil;
     }];
-  }];
+  });
 }
 
 #pragma mark - FBWebServerDelegate
