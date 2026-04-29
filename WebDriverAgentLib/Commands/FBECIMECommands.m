@@ -46,10 +46,10 @@
     XCUIApplication *app = FBSession.activeSession.activeApplication ?: XCUIApplication.fb_activeApplication;
 
     if (clear && nil != app) {
-      XCUIElement *focusedElement = app.fb_focusedElement;
-      if (nil != focusedElement) {
+      XCUIElement *activeElement = app.fb_activeElement;
+      if (nil != activeElement) {
         NSError *clearError;
-        [focusedElement fb_clearTextWithError:&clearError];
+        [activeElement fb_clearTextWithError:&clearError];
       }
     }
 
