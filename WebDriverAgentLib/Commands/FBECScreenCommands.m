@@ -5,7 +5,7 @@
 
 #import "FBECScreenCommands.h"
 
-#import "Routing/FBECResponsePayload.h"
+#import "FBECResponsePayload.h"
 #import "FBRoute.h"
 #import "FBRouteRequest.h"
 #import "FBScreen.h"

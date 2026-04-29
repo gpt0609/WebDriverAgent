@@ -7,7 +7,7 @@
 
 #import <XCTest/XCUIDevice.h>
 
-#import "Routing/FBECResponsePayload.h"
+#import "FBECResponsePayload.h"
 #import "FBRoute.h"
 #import "FBRouteRequest.h"
 #import "FBSession.h"

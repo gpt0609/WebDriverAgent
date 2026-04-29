@@ -78,7 +78,7 @@ fbec_files = [
   'WebDriverAgentLib/Commands/FBECScreenCommands.m',
   'WebDriverAgentLib/Commands/FBECTemplateCommands.m',
   'WebDriverAgentLib/Commands/FBECYoloCommands.m',
-  'WebDriverAgentLib/Routing/FBECResponsePayload.m',
+  'WebDriverAgentLib/Commands/FBECResponsePayload.m',
 ]
 
 # Check existing source files in the build phase

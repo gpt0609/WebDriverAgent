@@ -8,7 +8,7 @@
 #import <XCTest/XCUIDevice.h>
 #import <UIKit/UIPasteboard.h>
 
-#import "Routing/FBECResponsePayload.h"
+#import "FBECResponsePayload.h"
 #import "FBRoute.h"
 #import "FBRouteRequest.h"
 #import "FBKeyboard.h"
