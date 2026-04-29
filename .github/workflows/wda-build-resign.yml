@@ -127,12 +127,12 @@ jobs:
             -k "$KEYCHAIN_PATH" \
             -P "$PASSWORD" \
             -T /usr/bin/codesign \
-            -T /usr/bin/security
+            -T /usr/bin/security || echo "  (import returned non-zero, continuing...)"
 
           echo "== Setting key partitions =="
           security set-key-partitions-list \
             -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
+            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH" || echo "  (set-key-partitions-list warning, continuing...)"
 
           echo "== Available signing identities =="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
