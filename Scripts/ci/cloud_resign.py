@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-云端重签名 WebDriverAgent IPA
+Cloud Resign WebDriverAgent IPA
 
-在没有 macOS 的情况下，通过 GitHub Actions 云端编译并重签名 IPA。
-用户只需提供：p12 证书、provisioning profile、证书密码。
+Build and resign WebDriverAgent IPA using GitHub Actions cloud,
+without requiring a local macOS machine.
+User provides: p12 certificate, provisioning profile, certificate password.
 
-使用方法:
+Usage:
     python cloud_resign.py --p12 path/to/cert.p12 \
                            --profile path/to/profile.mobileprovision \
                            --password "your_password" \
                            --identity "iPhone Distribution: Name (TEAMID)"
 
-安全说明:
-    - p12 证书包含私钥，脚本会将证书内容编码为 GitHub Secret
-    - 请确保使用私有仓库或临时仓库
-    - 重签名完成后建议删除 secrets (使用 --cleanup 参数)
+Security note:
+    - p12 contains private key, stored in GitHub Secrets (encrypted)
+    - Use private repo or cleanup secrets after completion
 """
 
 import argparse
@@ -29,7 +29,7 @@ import requests
 
 
 class GitHubClient:
-    """GitHub API 客户端"""
+    """GitHub API client"""
 
     def __init__(self, token: str, repo_owner: str, repo_name: str):
         self.token = token
@@ -42,23 +42,23 @@ class GitHubClient:
         }
 
     def get_repo_public_key(self) -> tuple:
-        """获取仓库公钥用于加密 secrets"""
+        """Get repo public key for encrypting secrets"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/secrets/public-key"
         resp = requests.get(url, headers=self.headers)
         if resp.status_code == 200:
             data = resp.json()
             return data["key"], data["key_id"]
         else:
-            print(f"获取公钥失败: {resp.status_code} {resp.text}")
+            print(f"[FAIL] Get public key failed: {resp.status_code} {resp.text}")
             return None, None
 
     def create_or_update_secret(self, secret_name: str, value: str) -> bool:
-        """创建或更新仓库 Secret (使用 libsodium 加密)"""
+        """Create or update repo Secret (libsodium encrypted)"""
         pubkey, key_id = self.get_repo_public_key()
         if not pubkey:
             return False
 
-        # 使用 pynacl 加密
+        # Encrypt with pynacl
         try:
             from nacl import encoding, public
 
@@ -67,8 +67,8 @@ class GitHubClient:
             encrypted = sealed_box.encrypt(value.encode())
             encrypted_b64 = base64.b64encode(encrypted).decode()
         except ImportError:
-            print("错误: 需要安装 pynacl 库来加密 secrets")
-            print("请运行: pip install pynacl")
+            print("[FAIL] Need pynacl library to encrypt secrets")
+            print("       Run: pip install pynacl")
             return False
 
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/secrets/{secret_name}"
@@ -79,23 +79,23 @@ class GitHubClient:
 
         resp = requests.put(url, headers=self.headers, json=data)
         if resp.status_code in (201, 204):
-            print(f"  ✓ Secret '{secret_name}' 已创建/更新")
+            print(f"  [OK] Secret '{secret_name}' created/updated")
             return True
         else:
-            print(f"  ✗ 创建 Secret 失败: {resp.status_code} {resp.text}")
+            print(f"  [FAIL] Create Secret failed: {resp.status_code} {resp.text}")
             return False
 
     def delete_secret(self, secret_name: str) -> bool:
-        """删除仓库 Secret"""
+        """Delete repo Secret"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/secrets/{secret_name}"
         resp = requests.delete(url, headers=self.headers)
         if resp.status_code == 204:
-            print(f"  ✓ Secret '{secret_name}' 已删除")
+            print(f"  [OK] Secret '{secret_name}' deleted")
             return True
         return False
 
     def get_workflow_runs(self, workflow_file: str = None, limit: int = 10) -> list:
-        """获取 workflow runs"""
+        """Get workflow runs"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/runs"
         params = {"per_page": limit}
         if workflow_file:
@@ -107,7 +107,7 @@ class GitHubClient:
         return []
 
     def trigger_workflow(self, workflow_file: str, ref: str = "master", inputs: dict = None) -> int:
-        """触发 workflow，返回 run ID"""
+        """Trigger workflow, return run ID"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/workflows/{workflow_file}/dispatches"
         data = {"ref": ref}
         if inputs:
@@ -115,24 +115,24 @@ class GitHubClient:
 
         resp = requests.post(url, headers=self.headers, json=data)
         if resp.status_code == 204:
-            print(f"  ✓ Workflow '{workflow_file}' 已触发")
-            # 等待一下让 run 出现
+            print(f"  [OK] Workflow '{workflow_file}' triggered")
+            # Wait for run to appear
             time.sleep(5)
-            # 获取最新的 run ID
+            # Get latest run ID
             runs = self.get_workflow_runs(workflow_file, limit=1)
             if runs:
                 return runs[0]["id"]
         else:
-            print(f"  ✗ 触发 Workflow 失败: {resp.status_code} {resp.text}")
+            print(f"  [FAIL] Trigger Workflow failed: {resp.status_code} {resp.text}")
         return 0
 
     def wait_for_run_completion(self, run_id: int, timeout: int = 900, poll_interval: int = 30) -> str:
-        """等待 workflow run 完成，返回 conclusion"""
+        """Wait for workflow run completion, return conclusion"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/runs/{run_id}"
         start_time = time.time()
 
-        print(f"  等待构建完成 (run_id: {run_id})...")
-        print(f"  查看进度: https://github.com/{self.repo_owner}/{self.repo_name}/actions/runs/{run_id}")
+        print(f"  Waiting for build (run_id: {run_id})...")
+        print(f"  View progress: https://github.com/{self.repo_owner}/{self.repo_name}/actions/runs/{run_id}")
 
         while time.time() - start_time < timeout:
             resp = requests.get(url, headers=self.headers)
@@ -142,7 +142,7 @@ class GitHubClient:
                 conclusion = data.get("conclusion") or "pending"
 
                 elapsed = int(time.time() - start_time)
-                print(f"  [{elapsed}s] 状态: {status}, 结论: {conclusion}")
+                print(f"  [{elapsed}s] Status: {status}, Conclusion: {conclusion}")
 
                 if status == "completed":
                     return conclusion
@@ -152,7 +152,7 @@ class GitHubClient:
         return "timeout"
 
     def get_artifacts(self, run_id: int) -> list:
-        """获取 run 的 artifacts 列表"""
+        """Get run artifacts list"""
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/runs/{run_id}/artifacts"
         resp = requests.get(url, headers=self.headers)
         if resp.status_code == 200:
@@ -160,22 +160,69 @@ class GitHubClient:
         return []
 
     def download_artifact(self, artifact_id: int, output_path: str) -> bool:
-        """下载 artifact"""
+        """Download artifact and extract IPA from artifact zip"""
+        import zipfile
+        import tempfile
+
         url = f"{self.base_url}/repos/{self.repo_owner}/{self.repo_name}/actions/artifacts/{artifact_id}/zip"
         resp = requests.get(url, headers=self.headers, stream=True)
-        if resp.status_code == 200:
-            with open(output_path, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            print(f"  ✓ 已下载: {output_path} ({os.path.getsize(output_path)} bytes)")
-            return True
-        else:
-            print(f"  ✗ 下载失败: {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"  [FAIL] Download failed: {resp.status_code}")
+            return False
+
+        # Download artifact zip to temp file
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            for chunk in resp.iter_content(chunk_size=8192):
+                tmp.write(chunk)
+            tmp_zip = tmp.name
+
+        print(f"  Downloaded artifact zip: {os.path.getsize(tmp_zip)} bytes")
+
+        # GitHub artifact zip contains the IPA file inside
+        # Extract the IPA and save to output_path
+        try:
+            with zipfile.ZipFile(tmp_zip, "r") as zf:
+                # Find .ipa file inside artifact zip
+                ipa_files = [n for n in zf.namelist() if n.endswith(".ipa")]
+                if not ipa_files:
+                    # Maybe the artifact itself is the IPA content
+                    # (e.g., Payload/ directory directly)
+                    all_files = zf.namelist()
+                    print(f"  No .ipa in artifact, files: {all_files[:10]}")
+                    # Just extract all and re-zip as IPA
+                    pass
+                else:
+                    ipa_name = ipa_files[0]
+                    with zf.open(ipa_name) as ipa_src, open(output_path, "wb") as ipa_dst:
+                        ipa_dst.write(ipa_src.read())
+                    print(f"  [OK] Extracted IPA: {output_path} ({os.path.getsize(output_path)} bytes)")
+                    os.unlink(tmp_zip)
+                    return True
+
+                # Fallback: artifact contains Payload/ directly
+                payload_files = [n for n in zf.namelist() if n.startswith("Payload/")]
+                if payload_files:
+                    with zf.open(ipa_files[0]) if ipa_files else open(tmp_zip, "rb") as src:
+                        pass
+                    # Re-zip Payload contents as IPA
+                    with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as ipa_zf:
+                        for f in payload_files:
+                            ipa_zf.writestr(f, zf.read(f))
+                    print(f"  [OK] Re-packaged IPA: {output_path} ({os.path.getsize(output_path)} bytes)")
+                    os.unlink(tmp_zip)
+                    return True
+
+                print(f"  [FAIL] No IPA or Payload found in artifact")
+                os.unlink(tmp_zip)
+                return False
+        except Exception as e:
+            print(f"  [FAIL] Error extracting IPA: {e}")
+            os.unlink(tmp_zip)
             return False
 
 
 class CloudResigner:
-    """云端重签名管理器"""
+    """Cloud resign manager"""
 
     SECRETS = [
         "WDA_P12_CERTIFICATE",
@@ -185,20 +232,20 @@ class CloudResigner:
 
     def __init__(self, github_token: str, repo_owner: str, repo_name: str):
         self.github = GitHubClient(github_token, repo_owner, repo_name)
-        self.repo_path = Path(__file__).parent.parent.parent  # WebDriverAgent 目录
+        self.repo_path = Path(__file__).parent.parent.parent  # WebDriverAgent dir
 
     def setup_secrets(self, p12_path: str, profile_path: str, password: str) -> bool:
-        """设置重签名所需的 GitHub Secrets"""
-        print("\n[1/4] 设置 GitHub Secrets...")
+        """Setup GitHub Secrets for resigning"""
+        print("\n[1/4] Setting up GitHub Secrets...")
 
-        # 读取文件并编码为 base64
+        # Read files and encode base64
         with open(p12_path, "rb") as f:
             p12_b64 = base64.b64encode(f.read()).decode()
 
         with open(profile_path, "rb") as f:
             profile_b64 = base64.b64encode(f.read()).decode()
 
-        # 设置 secrets
+        # Set secrets
         secrets = {
             "WDA_P12_CERTIFICATE": p12_b64,
             "WDA_PROVISIONING_PROFILE": profile_b64,
@@ -213,16 +260,16 @@ class CloudResigner:
         return success
 
     def commit_workflow(self) -> bool:
-        """提交 workflow 文件到仓库"""
-        print("\n[2/4] 提交 workflow 到 GitHub...")
+        """Commit workflow file to repo"""
+        print("\n[2/4] Committing workflow to GitHub...")
 
         workflow_file = self.repo_path / ".github" / "workflows" / "wda-build-resign.yml"
         if not workflow_file.exists():
-            print(f"  ✗ Workflow 文件不存在: {workflow_file}")
+            print(f"  [FAIL] Workflow file not found: {workflow_file}")
             return False
 
         try:
-            # 检查是否有变更
+            # Check for changes
             result = subprocess.run(
                 ["git", "status", "--porcelain", ".github/workflows/wda-build-resign.yml"],
                 cwd=self.repo_path,
@@ -231,7 +278,7 @@ class CloudResigner:
             )
 
             if result.stdout.strip():
-                # 有变更，需要提交
+                # Has changes, need to commit
                 subprocess.run(["git", "add", ".github/workflows/wda-build-resign.yml"], cwd=self.repo_path, check=True)
                 subprocess.run(
                     ["git", "commit", "-m", "feat: add cloud build and resign workflow"],
@@ -239,42 +286,42 @@ class CloudResigner:
                     check=True,
                 )
                 subprocess.run(["git", "push", "origin", "master"], cwd=self.repo_path, check=True)
-                print("  ✓ Workflow 已提交并推送")
+                print("  [OK] Workflow committed and pushed")
             else:
-                print("  ✓ Workflow 无变更，已存在")
+                print("  [OK] Workflow already up-to-date")
 
             return True
         except subprocess.CalledProcessError as e:
-            print(f"  ✗ Git 操作失败: {e}")
+            print(f"  [FAIL] Git operation failed: {e}")
             return False
 
     def trigger_build(self, identity: str, build_only: bool = False) -> int:
-        """触发云端构建"""
-        print("\n[3/4] 触发云端构建...")
+        """Trigger cloud build"""
+        print("\n[3/4] Triggering cloud build...")
 
         inputs = {"identity": identity, "build_only": str(build_only).lower()}
         run_id = self.github.trigger_workflow("wda-build-resign.yml", inputs=inputs)
 
         if not run_id:
-            print("  ✗ 触发失败")
+            print("  [FAIL] Trigger failed")
             return 0
 
         return run_id
 
     def wait_and_download(self, run_id: int, output_path: str, artifact_name: str = "tj-easyclick-agent") -> bool:
-        """等待构建完成并下载 IPA"""
-        print("\n[4/4] 等待构建完成并下载...")
+        """Wait for build completion and download IPA"""
+        print("\n[4/4] Waiting for build and downloading...")
 
-        # 等待完成
+        # Wait for completion
         conclusion = self.github.wait_for_run_completion(run_id)
 
         if conclusion != "success":
-            print(f"  ✗ 构建失败: {conclusion}")
+            print(f"  [FAIL] Build failed: {conclusion}")
             return False
 
-        print("  ✓ 构建成功!")
+        print("  [OK] Build succeeded!")
 
-        # 获取 artifacts
+        # Get artifacts
         artifacts = self.github.get_artifacts(run_id)
         artifact_id = None
         for art in artifacts:
@@ -283,22 +330,22 @@ class CloudResigner:
                 break
 
         if not artifact_id:
-            print(f"  ✗ 未找到 artifact '{artifact_name}'")
-            print(f"  可用的 artifacts: {[a['name'] for a in artifacts]}")
+            print(f"  [FAIL] Artifact '{artifact_name}' not found")
+            print(f"  Available artifacts: {[a['name'] for a in artifacts]}")
             return False
 
-        # 下载
+        # Download
         return self.github.download_artifact(artifact_id, output_path)
 
     def cleanup_secrets(self) -> None:
-        """清理 GitHub Secrets"""
-        print("\n清理 Secrets...")
+        """Cleanup GitHub Secrets"""
+        print("\nCleaning up Secrets...")
         for secret in self.SECRETS:
             self.github.delete_secret(secret)
 
 
 def find_signing_identity(p12_path: str, password: str) -> str:
-    """尝试从 p12 文件中提取签名身份名称 (需要 openssl)"""
+    """Try to extract signing identity name from p12 file"""
     try:
         result = subprocess.run(
             ["openssl", "pkcs12", "-in", p12_path, "-nodes", "-passin", f"pass:{password}"],
@@ -306,10 +353,10 @@ def find_signing_identity(p12_path: str, password: str) -> str:
             text=True,
         )
         if result.returncode == 0:
-            # 查找 CN (Common Name)
+            # Find CN (Common Name)
             for line in result.stdout.split("\n"):
                 if "CN=" in line:
-                    # 提取 CN 值
+                    # Extract CN value
                     cn_start = line.find("CN=") + 3
                     cn_end = line.find(",", cn_start)
                     if cn_end == -1:
@@ -325,127 +372,127 @@ def find_signing_identity(p12_path: str, password: str) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="云端重签名 WebDriverAgent IPA",
+        description="Cloud resign WebDriverAgent IPA",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument("--p12", required=True, help="p12 证书文件路径")
-    parser.add_argument("--profile", required=True, help="provisioning profile 文件路径")
-    parser.add_argument("--password", required=True, help="p12 证书密码")
+    parser.add_argument("--p12", required=True, help="p12 certificate file path")
+    parser.add_argument("--profile", required=True, help="provisioning profile file path")
+    parser.add_argument("--password", required=True, help="p12 certificate password")
     parser.add_argument(
         "--identity",
-        help="签名身份 (如 'iPhone Distribution: Name (TEAMID)')，不指定则尝试自动提取",
+        help="Signing identity (e.g. 'iPhone Distribution: Name (TEAMID)'), auto-detected if not specified",
     )
     parser.add_argument(
         "--token",
-        help="GitHub Token (或设置环境变量 GITHUB_TOKEN)",
+        help="GitHub Token (or set env var GITHUB_TOKEN)",
     )
     parser.add_argument(
         "--repo",
         default="gpt0609/WebDriverAgent",
-        help="GitHub 仓库 (默认: gpt0609/WebDriverAgent)",
+        help="GitHub repo (default: gpt0609/WebDriverAgent)",
     )
     parser.add_argument(
         "--output",
         default="tj-easyclick-agent.ipa",
-        help="输出 IPA 文件名 (默认: tj-easyclick-agent.ipa)",
+        help="Output IPA filename (default: tj-easyclick-agent.ipa)",
     )
     parser.add_argument(
         "--build-only",
         action="store_true",
-        help="仅构建，不重签名",
+        help="Only build, skip resigning",
     )
     parser.add_argument(
         "--cleanup",
         action="store_true",
-        help="完成后清理 GitHub Secrets",
+        help="Cleanup GitHub Secrets after completion",
     )
 
     args = parser.parse_args()
 
-    # 获取 token
+    # Get token
     token = args.token or os.environ.get("GITHUB_TOKEN")
     if not token:
-        print("错误: 需要提供 GitHub Token")
-        print("  方式 1: --token YOUR_TOKEN")
-        print("  方式 2: 设置环境变量 GITHUB_TOKEN")
+        print("[FAIL] Need GitHub Token")
+        print("  Option 1: --token YOUR_TOKEN")
+        print("  Option 2: set env var GITHUB_TOKEN")
         sys.exit(1)
 
-    # 解析仓库
+    # Parse repo
     repo_parts = args.repo.split("/")
     if len(repo_parts) != 2:
-        print("错误: 仓库格式应为 owner/name")
+        print("[FAIL] Repo format should be owner/name")
         sys.exit(1)
 
-    # 检查文件存在
+    # Check files exist
     if not os.path.exists(args.p12):
-        print(f"错误: p12 文件不存在: {args.p12}")
+        print(f"[FAIL] p12 file not found: {args.p12}")
         sys.exit(1)
 
     if not os.path.exists(args.profile):
-        print(f"错误: provisioning profile 文件不存在: {args.profile}")
+        print(f"[FAIL] provisioning profile not found: {args.profile}")
         sys.exit(1)
 
-    # 确定签名身份
+    # Determine signing identity
     identity = args.identity
     if not identity and not args.build_only:
         identity = find_signing_identity(args.p12, args.password)
         if identity:
-            print(f"自动检测到签名身份: {identity}")
+            print(f"Auto-detected signing identity: {identity}")
         else:
-            print("警告: 无法自动检测签名身份，请使用 --identity 参数指定")
-            print("示例: --identity 'iPhone Distribution: Your Name (TEAMID)'")
+            print("[WARN] Cannot auto-detect signing identity, use --identity parameter")
+            print("Example: --identity 'iPhone Distribution: Your Name (TEAMID)'")
             sys.exit(1)
 
-    # 创建重签名管理器
+    # Create resigner
     resigner = CloudResigner(token, repo_parts[0], repo_parts[1])
 
-    # 执行流程
+    # Execute
     print("=" * 60)
-    print("WebDriverAgent 云端构建 & 重签名")
+    print("WebDriverAgent Cloud Build & Resign")
     print("=" * 60)
 
-    # 1. 设置 Secrets (除非只是构建)
+    # 1. Setup Secrets (unless build-only)
     if not args.build_only:
         if not resigner.setup_secrets(args.p12, args.profile, args.password):
-            print("设置 Secrets 失败")
+            print("[FAIL] Setup Secrets failed")
             sys.exit(1)
 
-    # 2. 提交 workflow
+    # 2. Commit workflow
     if not resigner.commit_workflow():
-        print("提交 workflow 失败")
+        print("[FAIL] Commit workflow failed")
         sys.exit(1)
 
-    # 3. 触发构建
+    # 3. Trigger build
     run_id = resigner.trigger_build(identity or "dummy", args.build_only)
     if not run_id:
-        print("触发构建失败")
+        print("[FAIL] Trigger build failed")
         sys.exit(1)
 
-    # 4. 等待并下载
+    # 4. Wait and download
     artifact_name = "WebDriverAgentRunner-unsigned" if args.build_only else "tj-easyclick-agent"
     if not resigner.wait_and_download(run_id, args.output, artifact_name):
         if args.cleanup:
             resigner.cleanup_secrets()
         sys.exit(1)
 
-    # 5. 清理
+    # 5. Cleanup
     if args.cleanup:
         resigner.cleanup_secrets()
 
-    # 完成
+    # Done
     print("\n" + "=" * 60)
-    print("✓ 完成!")
-    print(f"  IPA 文件: {os.path.abspath(args.output)}")
+    print("[OK] Completed!")
+    print(f"  IPA file: {os.path.abspath(args.output)}")
     print("=" * 60)
 
-    print("\n下一步:")
+    print("\nNext steps:")
     if args.build_only:
-        print("  未签名 IPA 已生成，需要在 macOS 上手动签名")
+        print("  Unsigned IPA generated, needs manual signing on macOS")
     else:
-        print("  1. 安装 IPA: tidevice install " + args.output)
-        print("  2. 启动 WDA: tidevice xctest -B com.wa.agent")
-        print("  3. 验证状态: 访问 http://<设备IP>:8100/health")
+        print("  1. Install IPA: tidevice install " + args.output)
+        print("  2. Start WDA: tidevice xctest -B com.wa.agent")
+        print("  3. Verify: visit http://<device-ip>:8100/health")
 
 
 if __name__ == "__main__":

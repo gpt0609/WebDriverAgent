@@ -10,6 +10,7 @@
 #import <net/if.h>
 
 static NSString *const kBGTaskIdentifier = @"com.apple.WebDriverAgent.background";
+static UIWindow *_statusWindow = nil;
 
 @interface WDADelegate () <FBWebServerDelegate, CLLocationManagerDelegate>
 @property (nonatomic, strong) FBWebServer *webServer;
@@ -64,6 +65,9 @@ static NSString *const kBGTaskIdentifier = @"com.apple.WebDriverAgent.background
             NSString *ip = [self getWiFiIPAddress] ?: @"127.0.0.1";
             self.statusLabel.text = [NSString stringWithFormat:@"WDA Running: %@:%ld", ip, (long)port];
             self.statusLabel.textColor = [UIColor greenColor];
+
+            // Show "Automation Running" floating alert
+            [self showAutomationRunningAlert:ip port:port];
         });
     });
 
@@ -324,6 +328,93 @@ static NSString *const kBGTaskIdentifier = @"com.apple.WebDriverAgent.background
         [self.audioEngine stop];
     }
     NSLog(@"[WDA KeepAlive] App terminating");
+}
+
+#pragma mark - Automation Running Alert
+
+- (void)showAutomationRunningAlert:(NSString *)ip port:(NSInteger)port
+{
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (_statusWindow != nil) {
+            return;
+        }
+
+        CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+        CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
+
+        _statusWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
+        _statusWindow.windowLevel = UIWindowLevelStatusBar + 100;
+        _statusWindow.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.4];
+
+        UIViewController *vc = [[UIViewController alloc] init];
+        vc.view.backgroundColor = [UIColor clearColor];
+        _statusWindow.rootViewController = vc;
+
+        CGFloat boxW = screenWidth > 320 ? 300 : 280;
+        CGFloat boxH = 160;
+        CGFloat boxX = (screenWidth - boxW) / 2;
+        CGFloat boxY = (screenHeight - boxH) / 2;
+
+        UIView *alertBox = [[UIView alloc] initWithFrame:CGRectMake(boxX, boxY, boxW, boxH)];
+        alertBox.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.98];
+        alertBox.layer.cornerRadius = 16;
+        alertBox.clipsToBounds = YES;
+        alertBox.layer.shadowColor = [UIColor blackColor].CGColor;
+        alertBox.layer.shadowOffset = CGSizeMake(0, 4);
+        alertBox.layer.shadowOpacity = 0.3f;
+        alertBox.layer.shadowRadius = 12;
+
+        // Green dot indicator
+        UIView *greenDot = [[UIView alloc] initWithFrame:CGRectMake(20, 20, 12, 12)];
+        greenDot.backgroundColor = [UIColor systemGreenColor];
+        greenDot.layer.cornerRadius = 6;
+        [alertBox addSubview:greenDot];
+
+        // Title label
+        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(42, 14, boxW - 62, 28)];
+        titleLabel.text = @"Automation Running";
+        titleLabel.font = [UIFont boldSystemFontOfSize:18];
+        titleLabel.textAlignment = NSTextAlignmentLeft;
+        titleLabel.textColor = [UIColor blackColor];
+        [alertBox addSubview:titleLabel];
+
+        // Divider line
+        UIView *divider = [[UIView alloc] initWithFrame:CGRectMake(0, 50, boxW, 0.5f)];
+        divider.backgroundColor = [UIColor colorWithWhite:0.85 alpha:1.0];
+        [alertBox addSubview:divider];
+
+        // Detail label with connection info
+        UILabel *detailLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 60, boxW - 40, 80)];
+        NSString *detailText = [NSString stringWithFormat:@"WebDriverAgent service is active.\nHTTP: http://%@:%ld/status\nTap anywhere to dismiss.", ip ?: @"127.0.0.1", (long)port];
+        detailLabel.text = detailText;
+        detailLabel.font = [UIFont systemFontOfSize:14];
+        detailLabel.textColor = [UIColor colorWithWhite:0.4 alpha:1.0];
+        detailLabel.textAlignment = NSTextAlignmentLeft;
+        detailLabel.numberOfLines = 0;
+        [alertBox addSubview:detailLabel];
+
+        // Tap gesture to dismiss
+        UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissStatusAlert)];
+        [_statusWindow addGestureRecognizer:tapGesture];
+
+        [vc.view addSubview:alertBox];
+        [_statusWindow makeKeyAndVisible];
+
+        NSLog(@"[WDA] Automation Running alert displayed");
+    });
+}
+
+- (void)dismissStatusAlert
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [UIView animateWithDuration:0.3 animations:^{
+            _statusWindow.alpha = 0;
+        } completion:^(BOOL finished) {
+            [_statusWindow resignKeyWindow];
+            _statusWindow.hidden = YES;
+            _statusWindow = nil;
+        }];
+    });
 }
 
 #pragma mark - FBWebServerDelegate
