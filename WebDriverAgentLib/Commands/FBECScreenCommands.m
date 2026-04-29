@@ -12,7 +12,9 @@
 #import "FBMathUtils.h"
 #import "XCUIDevice+FBHelpers.h"
 #import "XCUIApplication.h"
+#import "XCUIApplication+FBHelpers.h"
 #import "XCUIElement.h"
+#import "XCUIElement+FBWebDriverAttributes.h"
 
 @implementation FBECScreenCommands
 
