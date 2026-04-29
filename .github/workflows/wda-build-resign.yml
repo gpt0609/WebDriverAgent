@@ -112,6 +112,15 @@ jobs:
       - name: Import certificate
         if: inputs.build_only != true
         run: |
+          # Verify p12 integrity
+          PASSWORD="${{ secrets.WDA_P12_PASSWORD }}"
+          echo "== P12 SHA256: $(shasum -a 256 /tmp/cert.p12 | cut -d' ' -f1) =="
+          echo "== OpenSSL version: $(openssl version) =="
+
+          # Test openssl can read the p12
+          echo "== Testing p12 with openssl =="
+          openssl pkcs12 -in /tmp/cert.p12 -nokeys -passin pass:"$PASSWORD" 2>&1 | head -5
+
           # Create temp keychain
           KEYCHAIN_PATH="/tmp/sign.keychain-db"
           KEYCHAIN_PW="ci_temp_$(date +%s)"
@@ -121,20 +130,31 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-          # Convert p12 to PEM and back to PKCS12 for macOS compatibility
+          # Convert p12 to PEM then re-export with legacy encryption for macOS
           echo "== Converting p12 for macOS compatibility =="
-          PASSWORD="${{ secrets.WDA_P12_PASSWORD }}"
-          openssl pkcs12 -in /tmp/cert.p12 -nodes -passin pass:"$PASSWORD" -out /tmp/cert.pem 2>/dev/null || true
+          openssl pkcs12 -in /tmp/cert.p12 -nodes -passin pass:"$PASSWORD" -out /tmp/cert_combined.pem || {
+            echo "ERROR: Failed to extract from p12 with password"
+            exit 1
+          }
 
-          # Re-package with macOS compatible encryption (DES-CBC)
+          # Split cert and key
+          openssl x509 -in /tmp/cert_combined.pem -out /tmp/cert_only.pem
+          openssl rsa -in /tmp/cert_combined.pem -out /tmp/key_only.pem 2>/dev/null || \
+            openssl ec -in /tmp/cert_combined.pem -out /tmp/key_only.pem
+
+          # Re-package as PKCS12 with traditional (legacy) encryption
           openssl pkcs12 -export -out /tmp/cert_mac.p12 \
-            -in /tmp/cert.pem \
+            -inkey /tmp/key_only.pem \
+            -in /tmp/cert_only.pem \
             -passout pass:"$PASSWORD" \
-            -legacy 2>/dev/null || \
-          openssl pkcs12 -export -out /tmp/cert_mac.p12 \
-            -in /tmp/cert.pem \
-            -passout pass:"$PASSWORD" \
-            -descbc
+            -certpbe PBE-SHA1-3DES \
+            -keypbe PBE-SHA1-3DES \
+            -macalg SHA1 || {
+            echo "ERROR: Failed to re-export p12"
+            exit 1
+          }
+
+          echo "== Converted p12 size: $(wc -c < /tmp/cert_mac.p12) bytes =="
 
           # Import the converted p12
           security import /tmp/cert_mac.p12 \
