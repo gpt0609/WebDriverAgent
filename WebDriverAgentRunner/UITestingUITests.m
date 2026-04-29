@@ -153,7 +153,11 @@ static BOOL _webServerStarted = NO;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
 
     _statusWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
+#if TARGET_OS_TV
+    _statusWindow.windowLevel = UIWindowLevelNormal + 1;
+#else
     _statusWindow.windowLevel = UIWindowLevelStatusBar + 1;
+#endif
     _statusWindow.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.5];
 
     UIViewController *vc = [[UIViewController alloc] init];
