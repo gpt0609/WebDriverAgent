@@ -147,13 +147,10 @@ resource_files.each do |file_path|
     next
   end
 
-  # Create group hierarchy
-  group_path = File.dirname(file_path)
-  group = project.main_group.find_subpath(group_path, true)
-
-  file_ref = group.new_file(File.basename(file_path))
+  # Use full relative path for the file reference to ensure Xcode resolves correctly
+  file_ref = project.main_group.new_file(file_path)
   wda_runner.resources_build_phase.add_file_reference(file_ref)
-  puts "  Added #{filename}"
+  puts "  Added #{file_path}"
 end
 
 # ============================================================
