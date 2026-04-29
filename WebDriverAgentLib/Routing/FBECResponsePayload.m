@@ -13,7 +13,7 @@ id<FBResponsePayload> FBECResponseWithCode(NSInteger code, id data, NSString *ms
     @"data": data ?: [NSNull null],
     @"msg": msg ?: @""
   };
-  HTTPStatusCode httpStatus = (code == 0) ? HTTPStatusCode_OK : HTTPStatusCode_OK;
+  HTTPStatusCode httpStatus = (code == 0) ? kHTTPStatusCodeOK : kHTTPStatusCodeOK;
   return [[FBResponseJSONPayload alloc] initWithDictionary:response
                                             httpStatusCode:httpStatus];
 }
