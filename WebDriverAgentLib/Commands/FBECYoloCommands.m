@@ -8,7 +8,7 @@
 #import <iosauto/yolo.h>
 #import <iosauto/OnnxYoloObjc.h>
 
-#import "FBECResponsePayload.h"
+#import "Routing/FBECResponsePayload.h"
 #import "FBRoute.h"
 #import "FBRouteRequest.h"
 #import "XCUIDevice+FBHelpers.h"
