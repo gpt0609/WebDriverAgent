@@ -1,0 +1,11 @@
+framework module iosauto {
+  umbrella header "iosauto.h"
+
+  export *
+  module * { export * }
+}
+
+module iosauto.Swift {
+    header "iosauto-Swift.h"
+    requires objc
+}
