@@ -11,10 +11,11 @@
 #import "FBECResponsePayload.h"
 #import "FBRoute.h"
 #import "FBRouteRequest.h"
-#import "FBKeyboard.h"
 #import "FBSession.h"
 #import "XCUIApplication.h"
+#import "XCUIApplication+FBHelpers.h"
 #import "XCUIElement.h"
+#import "XCUIElement+FBTyping.h"
 
 @implementation FBECIMECommands
 
@@ -42,23 +43,19 @@
     }
 
     BOOL clear = [request.arguments[@"clear"] boolValue];
-
-    // Try to get the focused element via active session or system app
     XCUIApplication *app = FBSession.activeSession.activeApplication ?: XCUIApplication.fb_activeApplication;
 
-    if (clear) {
-      // Select all and delete existing text before typing
-      XCUIElement *focusedElement = app;
-      NSError *error;
-      if ([FBKeyboard typeText:@"" error:&error]) {
-        // Clear existing text by selecting all (Cmd+A) then type new text
+    if (clear && nil != app) {
+      XCUIElement *focusedElement = app.fb_focusedElement;
+      if (nil != focusedElement) {
+        NSError *clearError;
+        [focusedElement fb_clearTextWithError:&clearError];
       }
     }
 
     NSError *error;
-    BOOL success = [FBKeyboard typeText:text error:&error];
-    if (!success) {
-      return FBECErrorWithCode(-1, error.description ?: @"Failed to type text");
+    if (!FBTypeText(text, 60, &error)) {
+      return FBECErrorWithCode(-1, error.localizedDescription ?: @"Failed to type text");
     }
 
     return FBECSuccessWithData(@{@"typed": @(YES)});
