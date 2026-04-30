@@ -53,17 +53,20 @@ jobs:
           echo "Available frameworks:"
           ls -1 "$XCODE_FW/" 2>/dev/null || echo "  (not found)"
 
-          for fw in XCTest XCTAutomation XCTestCore XCUITest Testing; do
-            if [ -d "$XCODE_FW/$fw.framework" ]; then
-              echo "Copying $fw.framework..."
-              cp -r "$XCODE_FW/$fw.framework" "$FRAMEWORKS_DIR/"
+          # Copy ALL frameworks from Xcode platform (names change between Xcode versions)
+          for fw_path in "$XCODE_FW"/*.framework; do
+            if [ -d "$fw_path" ]; then
+              echo "Copying $(basename "$fw_path")..."
+              cp -r "$fw_path" "$FRAMEWORKS_DIR/"
             fi
           done
-
-          if [ -f "$XCODE_FW/libXCTestSwiftSupport.dylib" ]; then
-            echo "Copying libXCTestSwiftSupport.dylib..."
-            cp "$XCODE_FW/libXCTestSwiftSupport.dylib" "$FRAMEWORKS_DIR/"
-          fi
+          # Also copy any dylibs
+          for dylib_path in "$XCODE_FW"/*.dylib; do
+            if [ -f "$dylib_path" ]; then
+              echo "Copying $(basename "$dylib_path")..."
+              cp "$dylib_path" "$FRAMEWORKS_DIR/"
+            fi
+          done
 
           echo ""
           echo "App bundle frameworks:"
