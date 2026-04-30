@@ -111,24 +111,42 @@ jobs:
 
           echo "== Creating keychain =="
           security create-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
-          echo "== Importing certificate (p12 is pre-converted to legacy format) =="
+          echo "== Adding keychain to search list =="
+          # CRITICAL: Add custom keychain to the search list so codesign can find it
+          security list-keychains -s "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          echo "== Importing certificate =="
           security import /tmp/cert.p12 \
             -k "$KEYCHAIN_PATH" \
             -P "$PASSWORD" \
             -T /usr/bin/codesign \
-            -T /usr/bin/security || echo "  (import returned non-zero, continuing...)"
+            -T /usr/bin/security
+          echo "  Import exit code: $?"
 
           echo "== Setting key partitions =="
           security set-key-partitions-list \
             -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH" || echo "  (set-key-partitions-list warning, continuing...)"
+            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
+          echo "  Partition exit code: $?"
+
+          echo "== Verifying keychain search list =="
+          security list-keychains
 
           echo "== Available signing identities =="
+          security find-identity -v -p codesigning
+
+          echo "== Identities in custom keychain =="
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          IDENTITY_COUNT=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -c "1)")
+          if [ "$IDENTITY_COUNT" -eq 0 ]; then
+            echo "[FAIL] No signing identities found in keychain! Cannot proceed."
+            exit 1
+          fi
 
       - name: Resign IPA
         if: inputs.build_only != true
@@ -140,6 +158,17 @@ jobs:
           echo "  Identity: $IDENTITY"
           echo "  App: $APP_DIR"
 
+          # Remove Xcode system frameworks that cannot be resigned
+          echo "[0/4] Removing system frameworks..."
+          FRAMEWORKS_DIR="$APP_DIR/Frameworks"
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            rm -rf "$FRAMEWORKS_DIR"/XC*.framework 2>/dev/null || true
+            rm -rf "$FRAMEWORKS_DIR"/Testing.framework 2>/dev/null || true
+            rm -f "$FRAMEWORKS_DIR"/libXCTestSwiftSupport.dylib 2>/dev/null || true
+            echo "  Remaining frameworks:"
+            ls -1 "$FRAMEWORKS_DIR"/*.framework 2>/dev/null || echo "  (none)"
+          fi
+
           # 1. Remove old signatures
           echo "[1/4] Removing old signatures..."
           find "$APP_DIR" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -148,9 +177,8 @@ jobs:
           echo "[2/4] Embedding provisioning profile..."
           cp /tmp/profile.mobileprovision "$APP_DIR/embedded.mobileprovision"
 
-          # 3. Resign frameworks (reverse dependency order)
+          # 3. Resign frameworks (skip system ones already removed)
           echo "[3/4] Resigning frameworks..."
-          FRAMEWORKS_DIR="$APP_DIR/Frameworks"
           if [ -d "$FRAMEWORKS_DIR" ]; then
             for framework in "$FRAMEWORKS_DIR"/*.framework; do
               if [ -d "$framework" ]; then
@@ -158,19 +186,23 @@ jobs:
                 find "$framework" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
                 codesign --force --sign "$IDENTITY" \
                   --timestamp=none \
-                  --keychain /tmp/sign.keychain-db \
                   "$framework"
+              fi
+            done
+            # Also sign any dylibs
+            for dylib in "$FRAMEWORKS_DIR"/*.dylib; do
+              if [ -f "$dylib" ]; then
+                echo "  Resigning: $(basename "$dylib")"
+                codesign --force --sign "$IDENTITY" --timestamp=none "$dylib"
               fi
             done
           fi
 
-          # 4. Resign main app with entitlements
+          # 4. Resign main app with entitlements (no --deep, frameworks already signed)
           echo "[4/4] Resigning main app..."
           codesign --force --sign "$IDENTITY" \
             --entitlements /tmp/entitlements.plist \
             --timestamp=none \
-            --keychain /tmp/sign.keychain-db \
-            --deep \
             "$APP_DIR"
 
           # Verify
