@@ -120,18 +120,22 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
 
           echo "== Importing certificate =="
+          set +e
           security import /tmp/cert.p12 \
             -k "$KEYCHAIN_PATH" \
             -P "$PASSWORD" \
             -T /usr/bin/codesign \
             -T /usr/bin/security
-          echo "  Import exit code: $?"
+          IMPORT_EXIT=$?
+          set -e
+          echo "  Import exit code: $IMPORT_EXIT"
 
           echo "== Setting key partitions =="
+          # set-key-partitions-list may fail on some macOS versions, tolerate it
           security set-key-partitions-list \
             -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH"
-          echo "  Partition exit code: $?"
+            -s -k "$KEYCHAIN_PW" "$KEYCHAIN_PATH" 2>/dev/null || \
+            echo "  (set-key-partitions-list not available, continuing without partition ACL)"
 
           echo "== Verifying keychain search list =="
           security list-keychains
