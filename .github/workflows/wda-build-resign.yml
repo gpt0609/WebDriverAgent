@@ -38,13 +38,41 @@ jobs:
             CODE_SIGNING_ALLOWED=NO ARCHS=arm64 \
             -derivedDataPath wda_build
 
+      - name: Copy XCTest frameworks
+        if: inputs.build_only != true
+        run: |
+          APP_DIR="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
+          FRAMEWORKS_DIR="$APP_DIR/Frameworks"
+          mkdir -p "$FRAMEWORKS_DIR"
+
+          PLATFORM_DIR=$(xcrun --sdk iphoneos --show-platform-path)
+          XCODE_FW="$PLATFORM_DIR/Developer/Library/Frameworks"
+
+          echo "Platform dir: $PLATFORM_DIR"
+          echo "XCTest frameworks source: $XCODE_FW"
+          echo "Available frameworks:"
+          ls -1 "$XCODE_FW/" 2>/dev/null || echo "  (not found)"
+
+          for fw in XCTest XCTAutomation XCTestCore XCUITest Testing; do
+            if [ -d "$XCODE_FW/$fw.framework" ]; then
+              echo "Copying $fw.framework..."
+              cp -r "$XCODE_FW/$fw.framework" "$FRAMEWORKS_DIR/"
+            fi
+          done
+
+          if [ -f "$XCODE_FW/libXCTestSwiftSupport.dylib" ]; then
+            echo "Copying libXCTestSwiftSupport.dylib..."
+            cp "$XCODE_FW/libXCTestSwiftSupport.dylib" "$FRAMEWORKS_DIR/"
+          fi
+
+          echo ""
+          echo "App bundle frameworks:"
+          ls -lh "$FRAMEWORKS_DIR/"
+
       - name: Package unsigned app
         run: |
           cd wda_build/Build/Products/Debug-iphoneos
-          zip -r WebDriverAgentRunner-unsigned.zip WebDriverAgentRunner.app \
-            -x "WebDriverAgentRunner.app/Frameworks/XC*.framework*" \
-               "WebDriverAgentRunner.app/Frameworks/Testing.framework*" \
-               "WebDriverAgentRunner.app/Frameworks/libXCTestSwiftSupport.dylib"
+          zip -r WebDriverAgentRunner-unsigned.zip WebDriverAgentRunner.app
 
       - name: Upload unsigned artifact
         if: inputs.build_only == true
@@ -157,6 +185,7 @@ jobs:
         run: |
           IDENTITY="${{ inputs.identity }}"
           APP_DIR="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
+          FRAMEWORKS_DIR="$APP_DIR/Frameworks"
 
           echo "== Resigning WebDriverAgent IPA =="
           echo "  Identity: $IDENTITY"
