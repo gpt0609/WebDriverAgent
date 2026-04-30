@@ -45,7 +45,7 @@ jobs:
           FRAMEWORKS_DIR="$APP_DIR/Frameworks"
           mkdir -p "$FRAMEWORKS_DIR"
 
-          PLATFORM_DIR=$(xcrun --sdk iphoneos --show-platform-path)
+          PLATFORM_DIR=$(xcrun --sdk iphoneos --show-sdk-platform-path)
           XCODE_FW="$PLATFORM_DIR/Developer/Library/Frameworks"
 
           echo "Platform dir: $PLATFORM_DIR"
