@@ -162,27 +162,16 @@ jobs:
           echo "  Identity: $IDENTITY"
           echo "  App: $APP_DIR"
 
-          # Remove Xcode system frameworks that cannot be resigned
-          echo "[0/4] Removing system frameworks..."
-          FRAMEWORKS_DIR="$APP_DIR/Frameworks"
-          if [ -d "$FRAMEWORKS_DIR" ]; then
-            rm -rf "$FRAMEWORKS_DIR"/XC*.framework 2>/dev/null || true
-            rm -rf "$FRAMEWORKS_DIR"/Testing.framework 2>/dev/null || true
-            rm -f "$FRAMEWORKS_DIR"/libXCTestSwiftSupport.dylib 2>/dev/null || true
-            echo "  Remaining frameworks:"
-            ls -1 "$FRAMEWORKS_DIR"/*.framework 2>/dev/null || echo "  (none)"
-          fi
-
-          # 1. Remove old signatures
-          echo "[1/4] Removing old signatures..."
+          # 0. Remove old signatures
+          echo "[0/3] Removing old signatures..."
           find "$APP_DIR" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
 
           # 2. Embed provisioning profile
-          echo "[2/4] Embedding provisioning profile..."
+          echo "[1/3] Embedding provisioning profile..."
           cp /tmp/profile.mobileprovision "$APP_DIR/embedded.mobileprovision"
 
           # 3. Resign frameworks (skip system ones already removed)
-          echo "[3/4] Resigning frameworks..."
+          echo "[2/3] Resigning frameworks..."
           if [ -d "$FRAMEWORKS_DIR" ]; then
             for framework in "$FRAMEWORKS_DIR"/*.framework; do
               if [ -d "$framework" ]; then
@@ -203,7 +192,7 @@ jobs:
           fi
 
           # 4. Resign main app with entitlements (no --deep, frameworks already signed)
-          echo "[4/4] Resigning main app..."
+          echo "[3/3] Resigning main app..."
           codesign --force --sign "$IDENTITY" \
             --entitlements /tmp/entitlements.plist \
             --timestamp=none \
