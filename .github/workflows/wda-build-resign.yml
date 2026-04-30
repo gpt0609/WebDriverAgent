@@ -24,17 +24,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          lfs: true
 
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "${{ env.XCODE_VERSION }}"
-
-      - name: Setup EC extensions
-        run: |
-          gem install xcodeproj
-          ruby Scripts/ci/setup-ec-extensions.rb
 
       - name: Build WDA (unsigned)
         run: |
@@ -190,15 +183,15 @@ jobs:
           echo "== Packaging IPA =="
           mkdir -p Payload
           cp -r "$APP_DIR" Payload/
-          zip -qr tj-easyclick-agent.ipa Payload
-          echo "IPA created: $(ls -lh tj-easyclick-agent.ipa)"
+          zip -qr webdriveragent.ipa Payload
+          echo "IPA created: $(ls -lh webdriveragent.ipa)"
 
       - name: Upload resigned IPA
         if: inputs.build_only != true
         uses: actions/upload-artifact@v4
         with:
-          name: tj-easyclick-agent
-          path: tj-easyclick-agent.ipa
+          name: webdriveragent
+          path: webdriveragent.ipa
 
       - name: Cleanup
         if: always()

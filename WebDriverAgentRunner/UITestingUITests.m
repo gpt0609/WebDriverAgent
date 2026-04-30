@@ -3,7 +3,8 @@
  * All rights reserved.
  *
  * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree.
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
  */
 
 #import <XCTest/XCTest.h>
@@ -18,8 +19,6 @@
 static FBWebServer *_sharedWebServer = nil;
 static UIWindow *_statusWindow = nil;
 static BOOL _webServerStarted = NO;
-
-#define EC_WDA_VERSION @"9.0.0"
 
 @interface UITestingUITests : FBFailureProofTestCase <FBWebServerDelegate>
 @end
@@ -41,22 +40,6 @@ static BOOL _webServerStarted = NO;
       [FBConfiguration disableScreenshots];
 
       _sharedWebServer = [[FBWebServer alloc] init];
-
-      // EC: Read custom port from environment variable
-      NSString *ecServerPort = NSProcessInfo.processInfo.environment[@"EC_SERVER_PORT"];
-      if (nil != ecServerPort && ecServerPort.length > 0) {
-        NSInteger port = [ecServerPort integerValue];
-        if (port > 0 && port <= 65535) {
-          NSLog(@"EC: Setting custom server port to %ld", (long)port);
-          if ([_sharedWebServer respondsToSelector:NSSelectorFromString(@"setPort:")]) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-            [_sharedWebServer performSelector:NSSelectorFromString(@"setPort:") withObject:@(port)];
-#pragma clang diagnostic pop
-          }
-        }
-      }
-
       UITestingUITests *delegateInstance = [[UITestingUITests alloc] init];
       _sharedWebServer.delegate = delegateInstance;
       dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
@@ -89,22 +72,6 @@ static BOOL _webServerStarted = NO;
   if (_sharedWebServer == nil && !_webServerStarted) {
     _webServerStarted = YES;
     _sharedWebServer = [[FBWebServer alloc] init];
-
-    // EC: Read custom port from environment variable
-    NSString *ecServerPort = NSProcessInfo.processInfo.environment[@"EC_SERVER_PORT"];
-    if (nil != ecServerPort && ecServerPort.length > 0) {
-      NSInteger port = [ecServerPort integerValue];
-      if (port > 0 && port <= 65535) {
-        NSLog(@"EC: Setting custom server port to %ld", (long)port);
-        if ([_sharedWebServer respondsToSelector:NSSelectorFromString(@"setPort:")]) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-          [_sharedWebServer performSelector:NSSelectorFromString(@"setPort:") withObject:@(port)];
-#pragma clang diagnostic pop
-        }
-      }
-    }
-
     UITestingUITests *setUpDelegate = [[UITestingUITests alloc] init];
     _sharedWebServer.delegate = setUpDelegate;
     [_sharedWebServer startServing];
@@ -113,27 +80,11 @@ static BOOL _webServerStarted = NO;
 
 - (void)testRunner
 {
-  NSLog(@"#### %@ Welcome to EasyClick ipa process, website: http://ieasyclick.com #####", EC_WDA_VERSION);
+  NSLog(@"WebDriverAgent testRunner started");
 
   if (_sharedWebServer == nil && !_webServerStarted) {
     _webServerStarted = YES;
     _sharedWebServer = [[FBWebServer alloc] init];
-
-    // EC: Read custom port from environment variable
-    NSString *ecServerPort = NSProcessInfo.processInfo.environment[@"EC_SERVER_PORT"];
-    if (nil != ecServerPort && ecServerPort.length > 0) {
-      NSInteger port = [ecServerPort integerValue];
-      if (port > 0 && port <= 65535) {
-        NSLog(@"EC: Setting custom server port to %ld", (long)port);
-        if ([_sharedWebServer respondsToSelector:NSSelectorFromString(@"setPort:")]) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-          [_sharedWebServer performSelector:NSSelectorFromString(@"setPort:") withObject:@(port)];
-#pragma clang diagnostic pop
-        }
-      }
-    }
-
     _sharedWebServer.delegate = self;
     [_sharedWebServer startServing];
   } else {
@@ -153,11 +104,7 @@ static BOOL _webServerStarted = NO;
     CGFloat screenHeight = [UIScreen mainScreen].bounds.size.height;
 
     _statusWindow = [[UIWindow alloc] initWithFrame:CGRectMake(0, 0, screenWidth, screenHeight)];
-#if TARGET_OS_TV
-    _statusWindow.windowLevel = UIWindowLevelNormal + 1;
-#else
     _statusWindow.windowLevel = UIWindowLevelStatusBar + 1;
-#endif
     _statusWindow.backgroundColor = [UIColor colorWithRed:0.0 green:0.0 blue:0.0 alpha:0.5];
 
     UIViewController *vc = [[UIViewController alloc] init];
@@ -181,7 +128,7 @@ static BOOL _webServerStarted = NO;
     [alertBox addSubview:divider];
 
     UILabel *detailLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 58, 240, 56)];
-    detailLabel.text = [NSString stringWithFormat:@"WebDriverAgent v%@ service is active.\nHTTP: http://127.0.0.1:8100/status\nTap to dismiss.", EC_WDA_VERSION];
+    detailLabel.text = @"WebDriverAgent service is active.\nHTTP: http://127.0.0.1:8100/status\nTap to dismiss.";
     detailLabel.font = [UIFont systemFontOfSize:13];
     detailLabel.textColor = [UIColor grayColor];
     detailLabel.textAlignment = NSTextAlignmentCenter;

@@ -190,34 +190,42 @@ class GitHubClient:
                     all_files = zf.namelist()
                     print(f"  No .ipa in artifact, files: {all_files[:10]}")
                     # Just extract all and re-zip as IPA
-                    pass
                 else:
                     ipa_name = ipa_files[0]
                     with zf.open(ipa_name) as ipa_src, open(output_path, "wb") as ipa_dst:
                         ipa_dst.write(ipa_src.read())
                     print(f"  [OK] Extracted IPA: {output_path} ({os.path.getsize(output_path)} bytes)")
-                    os.unlink(tmp_zip)
+                    try:
+                        os.unlink(tmp_zip)
+                    except OSError:
+                        pass
                     return True
 
                 # Fallback: artifact contains Payload/ directly
                 payload_files = [n for n in zf.namelist() if n.startswith("Payload/")]
                 if payload_files:
-                    with zf.open(ipa_files[0]) if ipa_files else open(tmp_zip, "rb") as src:
-                        pass
-                    # Re-zip Payload contents as IPA
                     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as ipa_zf:
                         for f in payload_files:
                             ipa_zf.writestr(f, zf.read(f))
                     print(f"  [OK] Re-packaged IPA: {output_path} ({os.path.getsize(output_path)} bytes)")
-                    os.unlink(tmp_zip)
+                    try:
+                        os.unlink(tmp_zip)
+                    except OSError:
+                        pass
                     return True
 
                 print(f"  [FAIL] No IPA or Payload found in artifact")
-                os.unlink(tmp_zip)
+                try:
+                    os.unlink(tmp_zip)
+                except OSError:
+                    pass
                 return False
         except Exception as e:
             print(f"  [FAIL] Error extracting IPA: {e}")
-            os.unlink(tmp_zip)
+            try:
+                os.unlink(tmp_zip)
+            except OSError:
+                pass
             return False
 
 
@@ -394,8 +402,8 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="tj-easyclick-agent.ipa",
-        help="Output IPA filename (default: tj-easyclick-agent.ipa)",
+        default="webdriveragent.ipa",
+        help="Output IPA filename (default: webdriveragent.ipa)",
     )
     parser.add_argument(
         "--build-only",
@@ -470,7 +478,7 @@ def main():
         sys.exit(1)
 
     # 4. Wait and download
-    artifact_name = "WebDriverAgentRunner-unsigned" if args.build_only else "tj-easyclick-agent"
+    artifact_name = "WebDriverAgentRunner-unsigned" if args.build_only else "webdriveragent"
     if not resigner.wait_and_download(run_id, args.output, artifact_name):
         if args.cleanup:
             resigner.cleanup_secrets()
