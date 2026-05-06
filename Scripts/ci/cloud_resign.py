@@ -499,8 +499,13 @@ def main():
         print("  Unsigned IPA generated, needs manual signing on macOS")
     else:
         print("  1. Install IPA: tidevice install " + args.output)
-        print("  2. Start WDA: tidevice xctest -B com.wa.agent")
-        print("  3. Verify: visit http://<device-ip>:8100/health")
+        print("  2. Start WDA with the signed runner bundle id, for example:")
+        print(
+            "     ios runwda --bundleid <WDA_BUNDLE_ID>.xctrunner "
+            "--testrunnerbundleid <WDA_BUNDLE_ID>.xctrunner "
+            "--xctestconfig WebDriverAgentRunner.xctest"
+        )
+        print("  3. Verify: visit http://127.0.0.1:8100/status")
 
 
 if __name__ == "__main__":

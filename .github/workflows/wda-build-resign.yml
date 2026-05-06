@@ -31,51 +31,58 @@ jobs:
 
       - name: Build WDA (unsigned)
         run: |
-          xcodebuild build-for-testing \
+          xcodebuild build \
             -project WebDriverAgent.xcodeproj \
             -scheme WebDriverAgentRunner \
             -destination "generic/platform=iOS" \
             CODE_SIGNING_ALLOWED=NO ARCHS=arm64 \
             -derivedDataPath wda_build
 
-      - name: Copy XCTest frameworks
-        if: inputs.build_only != true
+      - name: Verify runner bundle
         run: |
-          APP_DIR="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
+          PRODUCTS_DIR="wda_build/Build/Products/Debug-iphoneos"
+          APP_DIR="$PRODUCTS_DIR/WebDriverAgentRunner-Runner.app"
+          if [ ! -d "$APP_DIR" ]; then
+            echo "[FAIL] WebDriverAgentRunner-Runner.app not found"
+            echo "Available apps:"
+            find "$PRODUCTS_DIR" -maxdepth 2 -name "*.app" -type d -print || true
+            exit 1
+          fi
+
+          if [ ! -d "$APP_DIR/PlugIns/WebDriverAgentRunner.xctest" ]; then
+            echo "[FAIL] WebDriverAgentRunner.xctest missing from runner app"
+            find "$APP_DIR" -maxdepth 3 -type d -print
+            exit 1
+          fi
+
           FRAMEWORKS_DIR="$APP_DIR/Frameworks"
-          mkdir -p "$FRAMEWORKS_DIR"
-
-          PLATFORM_DIR=$(xcrun --sdk iphoneos --show-sdk-platform-path)
-          XCODE_FW="$PLATFORM_DIR/Developer/Library/Frameworks"
-
-          echo "Platform dir: $PLATFORM_DIR"
-          echo "XCTest frameworks source: $XCODE_FW"
-          echo "Available frameworks:"
-          ls -1 "$XCODE_FW/" 2>/dev/null || echo "  (not found)"
-
-          # Copy ALL frameworks from Xcode platform (names change between Xcode versions)
-          for fw_path in "$XCODE_FW"/*.framework; do
-            if [ -d "$fw_path" ]; then
-              echo "Copying $(basename "$fw_path")..."
-              cp -r "$fw_path" "$FRAMEWORKS_DIR/"
-            fi
-          done
-          # Also copy any dylibs
-          for dylib_path in "$XCODE_FW"/*.dylib; do
-            if [ -f "$dylib_path" ]; then
-              echo "Copying $(basename "$dylib_path")..."
-              cp "$dylib_path" "$FRAMEWORKS_DIR/"
+          for required in \
+            XCUnit.framework \
+            XCTAutomationSupport.framework \
+            XCUIAutomation.framework \
+            XCTestSupport.framework \
+            XCTestCore.framework \
+            XCTest.framework; do
+            if [ ! -e "$FRAMEWORKS_DIR/$required" ]; then
+              echo "[FAIL] Missing required XCTest runtime: $required"
+              echo "Frameworks present:"
+              ls -la "$FRAMEWORKS_DIR" || true
+              exit 1
             fi
           done
 
-          echo ""
-          echo "App bundle frameworks:"
-          ls -lh "$FRAMEWORKS_DIR/"
+          echo "Runner app: $APP_DIR"
+          echo "Bundle ID:"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_DIR/Info.plist"
+          echo "Runner app size:"
+          du -sh "$APP_DIR"
+          echo "XCTest runtimes:"
+          ls -1 "$FRAMEWORKS_DIR"
 
       - name: Package unsigned app
         run: |
           cd wda_build/Build/Products/Debug-iphoneos
-          zip -r WebDriverAgentRunner-unsigned.zip WebDriverAgentRunner.app
+          zip -r WebDriverAgentRunner-unsigned.zip WebDriverAgentRunner-Runner.app
 
       - name: Upload unsigned artifact
         if: inputs.build_only == true
@@ -100,34 +107,11 @@ jobs:
           echo "  Password length: ${#PASSWORD}"
 
           echo "== Creating entitlements =="
-          cat > /tmp/entitlements.plist << 'PLISTEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>com.apple.security.get-task-allow</key>
-              <true/>
-              <key>platform-application</key>
-              <true/>
-              <key>task_for_pid-allow</key>
-              <true/>
-              <key>run-unsigned-code</key>
-              <true/>
-              <key>com.apple.private.MobileGestalt.AllowedDeviceVectors</key>
-              <true/>
-              <key>com.apple.developer.networking.wifi-info</key>
-              <true/>
-              <key>keychain-access-groups</key>
-              <array>
-                  <string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string>
-              </array>
-          </dict>
-          </plist>
-          PLISTEOF
+          security cms -D -i /tmp/profile.mobileprovision > /tmp/profile.plist
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" /tmp/profile.plist > /tmp/entitlements.plist
 
           echo "== Extracting bundle ID from profile =="
-          SECURITY cms -D -i /tmp/profile.mobileprovision 2>/dev/null | \
-            plutil -extract Entitlements.application-identifier raw -o /tmp/bundle_id_raw - || true
+          plutil -extract Entitlements.application-identifier raw -o /tmp/bundle_id_raw /tmp/profile.plist || true
           if [ -f /tmp/bundle_id_raw ]; then
             FULL_ID=$(cat /tmp/bundle_id_raw)
             echo "  Full app ID: $FULL_ID"
@@ -187,44 +171,55 @@ jobs:
         if: inputs.build_only != true
         run: |
           IDENTITY="${{ inputs.identity }}"
-          APP_DIR="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
+          APP_DIR="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
           FRAMEWORKS_DIR="$APP_DIR/Frameworks"
+          PLUGINS_DIR="$APP_DIR/PlugIns"
 
           echo "== Resigning WebDriverAgent IPA =="
           echo "  Identity: $IDENTITY"
           echo "  App: $APP_DIR"
 
           # 0. Remove old signatures
-          echo "[0/3] Removing old signatures..."
+          echo "[0/4] Removing old signatures..."
           find "$APP_DIR" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
 
           # 2. Embed provisioning profile
-          echo "[1/3] Embedding provisioning profile..."
+          echo "[1/4] Embedding provisioning profile..."
           cp /tmp/profile.mobileprovision "$APP_DIR/embedded.mobileprovision"
 
           # 3. Resign frameworks (skip system ones already removed)
-          echo "[2/3] Resigning frameworks..."
+          echo "[2/4] Resigning frameworks and dylibs..."
           if [ -d "$FRAMEWORKS_DIR" ]; then
-            for framework in "$FRAMEWORKS_DIR"/*.framework; do
-              if [ -d "$framework" ]; then
-                echo "  Resigning: $(basename "$framework")"
-                find "$framework" -name "_CodeSignature" -type d -exec rm -rf {} + 2>/dev/null || true
-                codesign --force --sign "$IDENTITY" \
-                  --timestamp=none \
-                  "$framework"
-              fi
+            find "$FRAMEWORKS_DIR" -name "*.framework" -type d | sort -r | while read -r framework; do
+              echo "  Resigning framework: ${framework#$APP_DIR/}"
+              codesign --force --sign "$IDENTITY" --timestamp=none "$framework"
             done
-            # Also sign any dylibs
-            for dylib in "$FRAMEWORKS_DIR"/*.dylib; do
-              if [ -f "$dylib" ]; then
-                echo "  Resigning: $(basename "$dylib")"
-                codesign --force --sign "$IDENTITY" --timestamp=none "$dylib"
-              fi
+
+            find "$FRAMEWORKS_DIR" -name "*.dylib" -type f | sort -r | while read -r dylib; do
+              echo "  Resigning dylib: ${dylib#$APP_DIR/}"
+              codesign --force --sign "$IDENTITY" --timestamp=none "$dylib"
+            done
+          fi
+
+          if [ -d "$PLUGINS_DIR" ]; then
+            find "$PLUGINS_DIR" -name "*.framework" -type d | sort -r | while read -r framework; do
+              echo "  Resigning plugin framework: ${framework#$APP_DIR/}"
+              codesign --force --sign "$IDENTITY" --timestamp=none "$framework"
+            done
+
+            find "$PLUGINS_DIR" -name "*.dylib" -type f | sort -r | while read -r dylib; do
+              echo "  Resigning plugin dylib: ${dylib#$APP_DIR/}"
+              codesign --force --sign "$IDENTITY" --timestamp=none "$dylib"
+            done
+
+            find "$PLUGINS_DIR" -name "*.xctest" -type d | sort -r | while read -r xctest; do
+              echo "  Resigning xctest: ${xctest#$APP_DIR/}"
+              codesign --force --sign "$IDENTITY" --timestamp=none "$xctest"
             done
           fi
 
           # 4. Resign main app with entitlements (no --deep, frameworks already signed)
-          echo "[3/3] Resigning main app..."
+          echo "[3/4] Resigning main app..."
           codesign --force --sign "$IDENTITY" \
             --entitlements /tmp/entitlements.plist \
             --timestamp=none \
@@ -237,7 +232,8 @@ jobs:
 
           # Package IPA
           echo ""
-          echo "== Packaging IPA =="
+          echo "[4/4] Packaging IPA..."
+          rm -rf Payload webdriveragent.ipa
           mkdir -p Payload
           cp -r "$APP_DIR" Payload/
           zip -qr webdriveragent.ipa Payload
@@ -254,4 +250,4 @@ jobs:
         if: always()
         run: |
           security delete-keychain /tmp/sign.keychain-db 2>/dev/null || true
-          rm -f /tmp/cert.p12 /tmp/profile.mobileprovision /tmp/entitlements.plist
+          rm -f /tmp/cert.p12 /tmp/profile.mobileprovision /tmp/profile.plist /tmp/entitlements.plist

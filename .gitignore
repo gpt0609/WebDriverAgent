@@ -30,6 +30,12 @@ xcuserdata
 ## Obj-C/Swift specific
 *.hmap
 *.ipa
+*.p12
+*.pem
+*.mobileprovision
+password.txt
+workflow_log*.txt
+jobs.json
 
 # AppCode
 .idea/
