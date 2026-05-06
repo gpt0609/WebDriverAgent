@@ -185,13 +185,6 @@ jobs:
           echo "Extracted entitlements from profile:"
           cat $ENTITLEMENTS_PATH
 
-          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool true" $ENTITLEMENTS_PATH 2>/dev/null || \
-            /usr/libexec/PlistBuddy -c "Set :get-task-allow true" $ENTITLEMENTS_PATH
-
-          echo ""
-          echo "Final entitlements (with get-task-allow=true):"
-          cat $ENTITLEMENTS_PATH
-
           SIGNING_IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/signing.keychain-db | head -1 | sed 's/.*"\(.*\)".*/\1/')
           echo "Signing identity: $SIGNING_IDENTITY"
 
