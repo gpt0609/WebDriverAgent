@@ -28,6 +28,11 @@ jobs:
         with:
           xcode-version: '16.4'
 
+      - name: Setup EC extensions
+        run: |
+          gem install xcodeproj
+          ruby Scripts/ci/setup-ec-extensions.rb
+
       - name: Install Certificate and Profile
         env:
           CERT_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
@@ -121,11 +126,11 @@ jobs:
           find wda_build -name "*.app" -type d 2>/dev/null
 
           PRODUCTS_DIR="wda_build/Build/Products/Debug-iphoneos"
-          APP_PATH="$PRODUCTS_DIR/WebDriverAgentRunner-Runner.app"
-          echo "Expected runner app: $APP_PATH"
+          APP_PATH="$PRODUCTS_DIR/WebDriverAgentRunner.app"
+          echo "Expected WDA app: $APP_PATH"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: WebDriverAgentRunner-Runner.app not found!"
+            echo "ERROR: WebDriverAgentRunner.app not found!"
             echo "=== Searching all build products ==="
             find wda_build -type d \( -name "*.app" -o -name "*.xctest" -o -name "*.framework" \) 2>/dev/null || true
             echo "=== Build log tail ==="
@@ -133,26 +138,17 @@ jobs:
             exit 1
           fi
 
-          if [ ! -d "$APP_PATH/PlugIns/WebDriverAgentRunner.xctest" ]; then
-            echo "ERROR: WebDriverAgentRunner.xctest missing from runner app!"
+          if [ ! -d "$APP_PATH/Frameworks/WebDriverAgentLib.framework" ]; then
+            echo "ERROR: WebDriverAgentLib.framework missing from WDA app!"
             find "$APP_PATH" -maxdepth 3 -type d -print
             exit 1
           fi
 
-          FRAMEWORKS_DIR="$APP_PATH/Frameworks"
-          for required in \
-            XCUnit.framework \
-            XCTAutomationSupport.framework \
-            XCUIAutomation.framework \
-            XCTestSupport.framework \
-            XCTestCore.framework \
-            XCTest.framework; do
-            if [ ! -e "$FRAMEWORKS_DIR/$required" ]; then
-              echo "ERROR: Missing required XCTest runtime: $required"
-              ls -la "$FRAMEWORKS_DIR" || true
-              exit 1
-            fi
-          done
+          if [ ! -d "$APP_PATH/Frameworks/iosauto.framework" ]; then
+            echo "ERROR: iosauto.framework missing from WDA app!"
+            ls -la "$APP_PATH/Frameworks" || true
+            exit 1
+          fi
 
           echo ""
           echo "=== App bundle contents ==="
@@ -168,13 +164,13 @@ jobs:
         run: |
           set -x
 
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
           PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/ | head -1 | sed 's/.mobileprovision//')
 
           echo "App: $APP_PATH"
           echo "Profile UUID: $PROFILE_UUID"
           if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: WebDriverAgentRunner-Runner.app not found"
+            echo "ERROR: WebDriverAgentRunner.app not found"
             exit 1
           fi
 
@@ -244,7 +240,7 @@ jobs:
         run: |
           set -x
 
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
 
           echo "=== Signature Verification ==="
           codesign --verify --deep --strict "$APP_PATH" 2>&1 && echo "✓ Signature valid" || echo "✗ Signature INVALID"
@@ -302,11 +298,11 @@ jobs:
 
       - name: Create IPA
         run: |
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
           echo "Found app: $APP_PATH"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "WebDriverAgentRunner-Runner.app not found!"
+            echo "WebDriverAgentRunner.app not found!"
             exit 1
           fi
 
