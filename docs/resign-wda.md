@@ -30,16 +30,25 @@ It uploads two artifacts:
 ```text
 WebDriverAgentRunner-Runner.app.zip
 WebDriverAgentRunner-Runner.unsigned.ipa
+WebDriverAgentRunner-Runner.full.app.zip
+WebDriverAgentRunner-Runner.full.unsigned.ipa
 ```
 
-Both artifacts remove embedded XCTest runtime files that are unsafe for reuse
-across iOS versions:
+The default `WebDriverAgentRunner-Runner.app.zip` and
+`WebDriverAgentRunner-Runner.unsigned.ipa` artifacts follow Appium's upstream
+real-device packaging strategy. They remove embedded XCTest runtime files that
+are unsafe for reuse across iOS versions:
 
 ```text
 Frameworks/XC*.framework
 Frameworks/Testing.framework
 Frameworks/libXCTestSwiftSupport.dylib
 ```
+
+The `full` artifacts keep those frameworks. Use them only when your installation
+or re-signing flow explicitly expects the larger Xcode-style package. The
+stripped artifacts are smaller, but this is expected and matches Appium's
+official real-device release package size.
 
 ## 2. Re-sign on macOS
 
@@ -53,7 +62,7 @@ Example:
 
 ```bash
 Scripts/resign-wda.sh \
-  --input WebDriverAgentRunner-Runner.unsigned.ipa \
+  --input WebDriverAgentRunner-Runner.full.unsigned.ipa \
   --bundle-id com.example.WebDriverAgentRunner.xctrunner \
   --certificate "Apple Development: Your Name (TEAMID)" \
   --mobileprovision ./profiles/WDA.mobileprovision \

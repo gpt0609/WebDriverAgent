@@ -31,24 +31,42 @@ jobs:
           DESTINATION: generic/platform=iOS
           ZIP_PKG_NAME: WebDriverAgentRunner-Runner.app.zip
           IPA_PKG_NAME: WebDriverAgentRunner-Runner.unsigned.ipa
+          FULL_ZIP_PKG_NAME: WebDriverAgentRunner-Runner.full.app.zip
+          FULL_IPA_PKG_NAME: WebDriverAgentRunner-Runner.full.unsigned.ipa
 
       - name: Verify package contents
         run: |
           set -euo pipefail
           unzip -l WebDriverAgentRunner-Runner.unsigned.ipa | grep -q "Payload/WebDriverAgentRunner-Runner.app/"
+          unzip -l WebDriverAgentRunner-Runner.full.unsigned.ipa | grep -q "Payload/WebDriverAgentRunner-Runner.app/"
           ! unzip -l WebDriverAgentRunner-Runner.unsigned.ipa | grep -E "Payload/WebDriverAgentRunner-Runner.app/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)"
           ! unzip -l WebDriverAgentRunner-Runner.app.zip | grep -E "WebDriverAgentRunner-Runner.app/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)"
+          unzip -l WebDriverAgentRunner-Runner.full.unsigned.ipa | grep -E "Payload/WebDriverAgentRunner-Runner.app/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)"
 
-      - name: Upload unsigned WDA app zip
+      - name: Upload stripped unsigned WDA app zip
         uses: actions/upload-artifact@v4
         with:
           name: WebDriverAgentRunner-Runner-app-zip
           path: WebDriverAgentRunner-Runner.app.zip
           if-no-files-found: error
 
-      - name: Upload unsigned WDA IPA
+      - name: Upload stripped unsigned WDA IPA
         uses: actions/upload-artifact@v4
         with:
           name: WebDriverAgentRunner-Runner-unsigned-ipa
           path: WebDriverAgentRunner-Runner.unsigned.ipa
+          if-no-files-found: error
+
+      - name: Upload full unsigned WDA app zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgentRunner-Runner-full-app-zip
+          path: WebDriverAgentRunner-Runner.full.app.zip
+          if-no-files-found: error
+
+      - name: Upload full unsigned WDA IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgentRunner-Runner-full-unsigned-ipa
+          path: WebDriverAgentRunner-Runner.full.unsigned.ipa
           if-no-files-found: error

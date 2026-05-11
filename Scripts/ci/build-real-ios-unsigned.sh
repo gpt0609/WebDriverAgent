@@ -13,6 +13,8 @@ PRODUCTS_DIR="${PRODUCTS_DIR:-$DERIVED_DATA_PATH/Build/Products/${CONFIGURATION}
 APP_NAME="${APP_NAME:-${SCHEME}-Runner.app}"
 ZIP_PKG_NAME="${ZIP_PKG_NAME:-WebDriverAgentRunner-Runner.app.zip}"
 IPA_PKG_NAME="${IPA_PKG_NAME:-WebDriverAgentRunner-Runner.unsigned.ipa}"
+FULL_ZIP_PKG_NAME="${FULL_ZIP_PKG_NAME:-WebDriverAgentRunner-Runner.full.app.zip}"
+FULL_IPA_PKG_NAME="${FULL_IPA_PKG_NAME:-WebDriverAgentRunner-Runner.full.unsigned.ipa}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR}"
 
 APP_PATH="$PRODUCTS_DIR/$APP_NAME"
@@ -39,6 +41,33 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
+rm -f \
+  "$OUTPUT_DIR/$ZIP_PKG_NAME" \
+  "$OUTPUT_DIR/$IPA_PKG_NAME" \
+  "$OUTPUT_DIR/$FULL_ZIP_PKG_NAME" \
+  "$OUTPUT_DIR/$FULL_IPA_PKG_NAME"
+
+(
+  cd "$PRODUCTS_DIR"
+  zip -qry "$OUTPUT_DIR/$FULL_ZIP_PKG_NAME" "$APP_NAME"
+)
+
+IPA_WORK_DIR="$(mktemp -d)"
+mkdir -p "$IPA_WORK_DIR/Payload"
+cp -R "$APP_PATH" "$IPA_WORK_DIR/Payload/"
+(
+  cd "$IPA_WORK_DIR"
+  zip -qry "$OUTPUT_DIR/$FULL_IPA_PKG_NAME" Payload
+)
+
+cleanup
+IPA_WORK_DIR=""
+
+if ! unzip -l "$OUTPUT_DIR/$FULL_IPA_PKG_NAME" | grep -q "Payload/$APP_NAME/"; then
+  echo "Full unsigned IPA does not contain Payload/$APP_NAME" >&2
+  exit 1
+fi
+
 FRAMEWORKS_DIR="$APP_PATH/Frameworks"
 if [[ -d "$FRAMEWORKS_DIR" ]]; then
   find "$FRAMEWORKS_DIR" -maxdepth 1 -name "XC*.framework" -exec rm -rf {} +
@@ -46,8 +75,6 @@ if [[ -d "$FRAMEWORKS_DIR" ]]; then
     "$FRAMEWORKS_DIR/Testing.framework" \
     "$FRAMEWORKS_DIR/libXCTestSwiftSupport.dylib"
 fi
-
-rm -f "$OUTPUT_DIR/$ZIP_PKG_NAME" "$OUTPUT_DIR/$IPA_PKG_NAME"
 
 (
   cd "$PRODUCTS_DIR"
@@ -63,19 +90,21 @@ cp -R "$APP_PATH" "$IPA_WORK_DIR/Payload/"
 )
 
 if ! unzip -l "$OUTPUT_DIR/$IPA_PKG_NAME" | grep -q "Payload/$APP_NAME/"; then
-  echo "Unsigned IPA does not contain Payload/$APP_NAME" >&2
+  echo "Stripped unsigned IPA does not contain Payload/$APP_NAME" >&2
   exit 1
 fi
 
 if unzip -l "$OUTPUT_DIR/$IPA_PKG_NAME" | grep -E "Payload/$APP_NAME/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)" >/dev/null; then
-  echo "Unsigned IPA still contains XCTest frameworks that should be removed" >&2
+  echo "Stripped unsigned IPA still contains XCTest frameworks that should be removed" >&2
   exit 1
 fi
 
 if unzip -l "$OUTPUT_DIR/$ZIP_PKG_NAME" | grep -E "$APP_NAME/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)" >/dev/null; then
-  echo "Unsigned app zip still contains XCTest frameworks that should be removed" >&2
+  echo "Stripped unsigned app zip still contains XCTest frameworks that should be removed" >&2
   exit 1
 fi
 
+echo "Created $OUTPUT_DIR/$FULL_ZIP_PKG_NAME"
+echo "Created $OUTPUT_DIR/$FULL_IPA_PKG_NAME"
 echo "Created $OUTPUT_DIR/$ZIP_PKG_NAME"
 echo "Created $OUTPUT_DIR/$IPA_PKG_NAME"
