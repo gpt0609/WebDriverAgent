@@ -4,15 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       wda_bundle_id:
-        description: 'WDA Bundle ID'
+        description: "WDA Bundle ID"
         required: true
-        default: 'app.honey4212.crystal5671'
+        default: "app.honey4212.crystal5671"
         type: string
-      team_id:
-        description: 'Apple Developer Team ID'
-        required: true
-        default: '8R6WK6QAKF'
-        type: string
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/build-signed-ipa.yml"
+      - "Scripts/ci/setup-ec-extensions.rb"
+      - "WebDriverAgent.xcodeproj/**"
+      - "WebDriverAgentRunner/**"
+      - "WebDriverAgentLib/**"
+      - "iosauto.framework/**"
+      - "Resources/**"
+
+env:
+  XCODE_VERSION: "16.4"
+  DEFAULT_WDA_BUNDLE_ID: "app.honey4212.crystal5671"
 
 jobs:
   build:
@@ -22,16 +32,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.4'
-
-      - name: Setup EC extensions
-        run: |
-          gem install xcodeproj
-          ruby Scripts/ci/setup-ec-extensions.rb
+          xcode-version: "${{ env.XCODE_VERSION }}"
 
       - name: Install Certificate and Profile
         env:
@@ -39,56 +46,72 @@ jobs:
           CERT_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
         run: |
-          set -x
+          set -euxo pipefail
 
-          KEYCHAIN_PATH=$RUNNER_TEMP/signing.keychain-db
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PWD="tempkeychain123"
 
-          security create-keychain -p "$KEYCHAIN_PWD" $KEYCHAIN_PATH || true
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PWD" $KEYCHAIN_PATH
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH" || true
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
 
-          CERT_PATH=$RUNNER_TEMP/cert.p12
-          echo "$CERT_BASE64" | tr -d '\r\n' | base64 --decode > $CERT_PATH
-          echo "Certificate file size: $(wc -c < $CERT_PATH) bytes"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          echo "$CERT_BASE64" | tr -d '\r\n' | base64 --decode > "$CERT_PATH"
 
-          CERT_PEM=$RUNNER_TEMP/cert.pem
-          KEY_PEM=$RUNNER_TEMP/key.pem
-          P12_NEW=$RUNNER_TEMP/cert_new.p12
+          CERT_PEM="$RUNNER_TEMP/cert.pem"
+          KEY_PEM="$RUNNER_TEMP/key.pem"
+          P12_NEW="$RUNNER_TEMP/cert_new.p12"
 
-          openssl pkcs12 -in $CERT_PATH -clcerts -nokeys -passin pass:"$CERT_PASSWORD" -out $CERT_PEM || true
-          openssl pkcs12 -in $CERT_PATH -nocerts -nodes -passin pass:"$CERT_PASSWORD" -out $KEY_PEM || true
-          openssl pkcs12 -export -out $P12_NEW -inkey $KEY_PEM -in $CERT_PEM -passout pass:"$CERT_PASSWORD" || true
+          openssl pkcs12 -in "$CERT_PATH" -clcerts -nokeys -passin pass:"$CERT_PASSWORD" -out "$CERT_PEM" || true
+          openssl pkcs12 -in "$CERT_PATH" -nocerts -nodes -passin pass:"$CERT_PASSWORD" -out "$KEY_PEM" || true
+          openssl pkcs12 -export -out "$P12_NEW" -inkey "$KEY_PEM" -in "$CERT_PEM" -passout pass:"$CERT_PASSWORD" || true
 
-          security import $P12_NEW \
+          security import "$P12_NEW" \
             -P "$CERT_PASSWORD" \
             -A \
             -t cert \
             -f pkcs12 \
-            -k $KEYCHAIN_PATH \
+            -k "$KEYCHAIN_PATH" \
             -T /usr/bin/codesign \
             -T /usr/bin/productsign \
             -T /usr/bin/security
 
-          security list-keychain -d user -s $KEYCHAIN_PATH
-          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
-          PROFILE_DIR=~/Library/MobileDevice/Provisioning\ Profiles
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILE_DIR"
 
-          PROFILE_TEMP=$RUNNER_TEMP/profile.mobileprovision
-          echo "$PROFILE_BASE64" | tr -d '\r\n' | base64 --decode > $PROFILE_TEMP
+          PROFILE_TEMP="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$PROFILE_BASE64" | tr -d '\r\n' | base64 --decode > "$PROFILE_TEMP"
 
-          PROFILE_UUID=$(security cms -D -i $PROFILE_TEMP 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "unknown")
-          echo "Profile UUID: $PROFILE_UUID"
-
-          cp $PROFILE_TEMP "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
-          echo "Profile file size: $(wc -c < "$PROFILE_DIR/$PROFILE_UUID.mobileprovision") bytes"
+          PROFILE_UUID=$(security cms -D -i "$PROFILE_TEMP" 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || echo "unknown")
+          cp "$PROFILE_TEMP" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
           ls -la "$PROFILE_DIR/"
+
+      - name: Restore XCUITest runner project shape
+        run: |
+          set -euxo pipefail
+
+          git checkout 812cd02f^ -- \
+            WebDriverAgent.xcodeproj/project.pbxproj \
+            WebDriverAgent.xcodeproj/xcshareddata/xcschemes/WebDriverAgentRunner.xcscheme
+
+          git status --short
+
+      - name: Setup EC extensions
+        run: |
+          gem install xcodeproj
+          ruby Scripts/ci/setup-ec-extensions.rb
 
       - name: Update Bundle ID
         run: |
-          BUNDLE_ID="${{ inputs.wda_bundle_id }}"
+          set -euxo pipefail
+
+          BUNDLE_ID="${{ github.event.inputs.wda_bundle_id }}"
+          if [ -z "$BUNDLE_ID" ]; then
+            BUNDLE_ID="${DEFAULT_WDA_BUNDLE_ID}"
+          fi
 
           sed -i '' "s/com.facebook.WebDriverAgentRunner/${BUNDLE_ID}/g" WebDriverAgent.xcodeproj/project.pbxproj
           sed -i '' "s/com.facebook.WebDriverAgentLib/${BUNDLE_ID}Lib/g" WebDriverAgent.xcodeproj/project.pbxproj
@@ -96,213 +119,128 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}Lib" WebDriverAgentLib/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${BUNDLE_ID}" WebDriverAgentRunner/Info.plist
 
-          sed -i '' 's/EEF988291C486603005CA669 = {/EEF988291C486603005CA669 = {\
-            ProvisioningStyle = Manual;/g' WebDriverAgent.xcodeproj/project.pbxproj
-
-          echo "=== Verifying Bundle ID changes ==="
-          grep "PRODUCT_BUNDLE_IDENTIFIER" WebDriverAgent.xcodeproj/project.pbxproj | grep -v "tvOS\|Lib\|Test\|Integration" | head -5
+          echo "=== Verifying bundle IDs ==="
+          echo "Using bundle ID: $BUNDLE_ID"
+          grep "PRODUCT_BUNDLE_IDENTIFIER" WebDriverAgent.xcodeproj/project.pbxproj | grep -v "tvOS\|Test\|Integration" | head -8
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" WebDriverAgentRunner/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" WebDriverAgentLib/Info.plist
 
-      - name: Build WDA (Unsigned)
+      - name: Build WDA (unsigned XCUITest runner)
         run: |
-          set -o pipefail
-          set -x
+          set -euxo pipefail
 
-          xcodebuild -project WebDriverAgent.xcodeproj \
+          xcodebuild clean build-for-testing \
+            -project WebDriverAgent.xcodeproj \
             -scheme WebDriverAgentRunner \
-            -destination 'generic/platform=iOS' \
+            -destination "generic/platform=iOS" \
             -derivedDataPath wda_build \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            ENABLE_TESTABILITY=NO \
+            ARCHS=arm64 \
             GCC_TREAT_WARNINGS_AS_ERRORS=NO \
             GCC_WARN_PEDANTIC=NO \
             RUN_CLANG_STATIC_ANALYZER=NO \
-            build 2>&1 | tee build.log
-
-          echo ""
-          echo "=== Searching for .app bundle ==="
-          find wda_build -name "*.app" -type d 2>/dev/null
+            2>&1 | tee build.log
 
           PRODUCTS_DIR="wda_build/Build/Products/Debug-iphoneos"
-          APP_PATH="$PRODUCTS_DIR/WebDriverAgentRunner.app"
-          echo "Expected WDA app: $APP_PATH"
+          APP_PATH="$PRODUCTS_DIR/WebDriverAgentRunner-Runner.app"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: WebDriverAgentRunner.app not found!"
-            echo "=== Searching all build products ==="
-            find wda_build -type d \( -name "*.app" -o -name "*.xctest" -o -name "*.framework" \) 2>/dev/null || true
-            echo "=== Build log tail ==="
-            tail -50 build.log || true
+            echo "ERROR: WebDriverAgentRunner-Runner.app not found"
+            find "$PRODUCTS_DIR" -maxdepth 2 -name "*.app" -type d -print || true
             exit 1
           fi
 
-          if [ ! -d "$APP_PATH/Frameworks/WebDriverAgentLib.framework" ]; then
-            echo "ERROR: WebDriverAgentLib.framework missing from WDA app!"
+          if [ ! -d "$APP_PATH/PlugIns/WebDriverAgentRunner.xctest" ]; then
+            echo "ERROR: WebDriverAgentRunner.xctest missing from runner app"
             find "$APP_PATH" -maxdepth 3 -type d -print
             exit 1
           fi
 
-          if [ ! -d "$APP_PATH/Frameworks/iosauto.framework" ]; then
-            echo "ERROR: iosauto.framework missing from WDA app!"
-            ls -la "$APP_PATH/Frameworks" || true
-            exit 1
-          fi
-
-          echo ""
-          echo "=== App bundle contents ==="
-          ls -la "$APP_PATH/"
-
-          echo ""
-          echo "=== Info.plist check ==="
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read CFBundleIdentifier"
-          /usr/libexec/PlistBuddy -c "Print :CFBundlePackageType" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read CFBundlePackageType"
-          /usr/libexec/PlistBuddy -c "Print :UIBackgroundModes" "$APP_PATH/Info.plist" 2>/dev/null || echo "Could not read UIBackgroundModes"
+          echo "=== Runner app summary ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/PlugIns/WebDriverAgentRunner.xctest/Info.plist"
+          du -sh "$APP_PATH"
+          find "$APP_PATH" -maxdepth 2 -type d | sort
 
       - name: Sign WDA with Dynamic Entitlements
         run: |
-          set -x
+          set -euxo pipefail
 
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
-          PROFILE_UUID=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/ | head -1 | sed 's/.mobileprovision//')
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
+          PROFILE_UUID=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/" | head -1 | sed 's/.mobileprovision//')
 
-          echo "App: $APP_PATH"
-          echo "Profile UUID: $PROFILE_UUID"
-          if [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: WebDriverAgentRunner.app not found"
-            exit 1
-          fi
+          cp "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision" "$APP_PATH/embedded.mobileprovision"
 
-          cp ~/Library/MobileDevice/Provisioning\ Profiles/$PROFILE_UUID.mobileprovision "$APP_PATH/embedded.mobileprovision"
+          ENTITLEMENTS_PATH="$RUNNER_TEMP/entitlements.plist"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
 
-          ENTITLEMENTS_PATH=$RUNNER_TEMP/entitlements.plist
-          PROFILE_PLIST=$RUNNER_TEMP/profile.plist
+          security cms -D -i "$APP_PATH/embedded.mobileprovision" > "$PROFILE_PLIST" 2>/dev/null
+          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" "$PROFILE_PLIST" > "$ENTITLEMENTS_PATH"
+          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool true" "$ENTITLEMENTS_PATH" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :get-task-allow true" "$ENTITLEMENTS_PATH"
 
-          security cms -D -i "$APP_PATH/embedded.mobileprovision" > $PROFILE_PLIST 2>/dev/null
-          /usr/libexec/PlistBuddy -x -c "Print :Entitlements" $PROFILE_PLIST > $ENTITLEMENTS_PATH
-
-          echo "Extracted entitlements from profile:"
-          cat $ENTITLEMENTS_PATH
-
-          SIGNING_IDENTITY=$(security find-identity -v -p codesigning $RUNNER_TEMP/signing.keychain-db | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          echo "Signing identity: $SIGNING_IDENTITY"
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$RUNNER_TEMP/signing.keychain-db" | head -1 | sed 's/.*"\(.*\)".*/\1/')
 
           FRAMEWORKS_DIR="$APP_PATH/Frameworks"
           if [ -d "$FRAMEWORKS_DIR" ]; then
-            echo "Signing nested frameworks..."
-
-            find "$FRAMEWORKS_DIR" -name "*.framework" -type d 2>/dev/null | sort -r | while read -r fw; do
-              echo "  Signing framework: ${fw#$APP_PATH/}"
+            find "$FRAMEWORKS_DIR" -name "*.framework" -type d | sort -r | while read -r fw; do
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
             done
 
-            find "$FRAMEWORKS_DIR" -name "*.dylib" -type f 2>/dev/null | sort -r | while read -r dylib; do
-              echo "  Signing dylib: ${dylib#$APP_PATH/}"
+            find "$FRAMEWORKS_DIR" -name "*.dylib" -type f | sort -r | while read -r dylib; do
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$dylib"
             done
           fi
 
           PLUGINS_DIR="$APP_PATH/PlugIns"
           if [ -d "$PLUGINS_DIR" ]; then
-            find "$PLUGINS_DIR" -name "*.framework" -type d 2>/dev/null | sort -r | while read -r fw; do
-              echo "  Signing plugin framework: ${fw#$APP_PATH/}"
+            find "$PLUGINS_DIR" -name "*.framework" -type d | sort -r | while read -r fw; do
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$fw"
             done
 
-            find "$PLUGINS_DIR" -name "*.dylib" -type f 2>/dev/null | sort -r | while read -r dylib; do
-              echo "  Signing plugin dylib: ${dylib#$APP_PATH/}"
+            find "$PLUGINS_DIR" -name "*.dylib" -type f | sort -r | while read -r dylib; do
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$dylib"
             done
 
-            find "$PLUGINS_DIR" -name "*.xctest" -type d 2>/dev/null | sort -r | while read -r xctest; do
-              echo "  Signing xctest: ${xctest#$APP_PATH/}"
+            find "$PLUGINS_DIR" -name "*.xctest" -type d | sort -r | while read -r xctest; do
               codesign --force --sign "$SIGNING_IDENTITY" --timestamp=none "$xctest"
             done
           fi
 
-          echo "Signing main app with entitlements..."
           codesign --force --sign "$SIGNING_IDENTITY" \
-            --entitlements $ENTITLEMENTS_PATH \
+            --entitlements "$ENTITLEMENTS_PATH" \
             --timestamp=none \
             "$APP_PATH"
 
-          echo "Signing completed"
-
       - name: Verify Signing
         run: |
-          set -x
+          set -euxo pipefail
 
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
 
-          echo "=== Signature Verification ==="
-          codesign --verify --deep --strict "$APP_PATH" 2>&1 && echo "✓ Signature valid" || echo "✗ Signature INVALID"
-
-          echo ""
-          echo "=== Entitlements Check ==="
+          codesign --verify --deep --strict "$APP_PATH"
           codesign -d --entitlements :- "$APP_PATH" 2>&1
 
-          echo ""
-          echo "=== get-task-allow Check ==="
-          ENTITLEMENTS=$(codesign -d --entitlements :- "$APP_PATH" 2>&1)
-          if echo "$ENTITLEMENTS" | grep -q "get-task-allow"; then
-            if echo "$ENTITLEMENTS" | grep -A1 "get-task-allow" | grep -q "true"; then
-              echo "✓ get-task-allow = true"
-            else
-              echo "✗ get-task-allow is NOT true"
-            fi
-          else
-            echo "✗ get-task-allow not found in entitlements"
-          fi
+          ACTUAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
+          TEST_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/PlugIns/WebDriverAgentRunner.xctest/Info.plist")
 
-          echo ""
-          echo "=== Bundle ID Check ==="
-          ACTUAL_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist" 2>/dev/null)
-          echo "Bundle ID: $ACTUAL_BUNDLE_ID"
-          if echo "$ACTUAL_BUNDLE_ID" | grep -q "xctrunner"; then
-            echo "✗ ERROR: Bundle ID contains .xctrunner suffix!"
-          else
-            echo "✓ Bundle ID has no .xctrunner suffix"
-          fi
+          echo "Runner bundle ID: $ACTUAL_BUNDLE_ID"
+          echo "Test bundle ID: $TEST_BUNDLE_ID"
 
-          echo ""
-          echo "=== UIBackgroundModes Check ==="
-          BG_MODES=$(/usr/libexec/PlistBuddy -c "Print :UIBackgroundModes" "$APP_PATH/Info.plist" 2>/dev/null || echo "MISSING")
-          echo "UIBackgroundModes: $BG_MODES"
-
-          echo ""
-          echo "=== Package Type Check ==="
-          PKG_TYPE=$(/usr/libexec/PlistBuddy -c "Print :CFBundlePackageType" "$APP_PATH/Info.plist" 2>/dev/null || echo "MISSING")
-          echo "CFBundlePackageType: $PKG_TYPE"
-
-          echo ""
-          echo "=== Provisioning Profile Check ==="
-          if [ -f "$APP_PATH/embedded.mobileprovision" ]; then
-            echo "✓ embedded.mobileprovision exists"
-            PROFILE_SIZE=$(wc -c < "$APP_PATH/embedded.mobileprovision")
-            echo "  Size: $PROFILE_SIZE bytes"
-          else
-            echo "✗ embedded.mobileprovision MISSING"
-          fi
-
-          echo ""
-          echo "=== Detailed Signature Info ==="
-          codesign -dvvv "$APP_PATH" 2>&1 | head -20
-
-      - name: Create IPA
-        run: |
-          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner.app"
-          echo "Found app: $APP_PATH"
-
-          if [ ! -d "$APP_PATH" ]; then
-            echo "WebDriverAgentRunner.app not found!"
+          if ! echo "$ACTUAL_BUNDLE_ID" | grep -q "\.xctrunner$"; then
+            echo "ERROR: runner bundle id does not end with .xctrunner"
             exit 1
           fi
 
+      - name: Create IPA
+        run: |
+          set -euxo pipefail
+
+          APP_PATH="wda_build/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
           rm -rf Payload WebDriverAgent.ipa
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
-          zip -r WebDriverAgent.ipa Payload
+          zip -qr WebDriverAgent.ipa Payload
           ls -lh WebDriverAgent.ipa
 
       - name: Upload IPA
@@ -322,4 +260,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: security delete-keychain $RUNNER_TEMP/signing.keychain-db 2>/dev/null || true
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
