@@ -50,6 +50,8 @@ uncompressed/
 prebuilt-agents/
 WebDriverAgentRunner-Runner.app.zip
 WebDriverAgentRunner-Runner.app/
+artifacts/
+Github.txt
 
 # Ruby
 Gemfile.lock
