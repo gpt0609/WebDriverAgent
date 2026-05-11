@@ -1,0 +1,57 @@
+name: Build unsigned iOS WDA package
+
+on:
+  workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: Xcode version used to build WebDriverAgent
+        default: "16.4"
+        required: true
+        type: string
+
+env:
+  HOST: macos-15
+
+jobs:
+  build_unsigned_ios_wda:
+    name: Build unsigned iOS WDA package
+    runs-on: ${{ env.HOST }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode_version }}
+
+      - name: Build unsigned WDA app and IPA
+        run: bash "$GITHUB_WORKSPACE/Scripts/ci/build-real-ios-unsigned.sh"
+        env:
+          DERIVED_DATA_PATH: appium_wda_ios
+          SCHEME: WebDriverAgentRunner
+          DESTINATION: generic/platform=iOS
+          ZIP_PKG_NAME: WebDriverAgentRunner-Runner.app.zip
+          IPA_PKG_NAME: WebDriverAgentRunner-Runner.unsigned.ipa
+
+      - name: Verify package contents
+        run: |
+          set -euo pipefail
+          unzip -l WebDriverAgentRunner-Runner.unsigned.ipa | grep -q "Payload/WebDriverAgentRunner-Runner.app/"
+          ! unzip -l WebDriverAgentRunner-Runner.unsigned.ipa | grep -E "Payload/WebDriverAgentRunner-Runner.app/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)"
+          ! unzip -l WebDriverAgentRunner-Runner.app.zip | grep -E "WebDriverAgentRunner-Runner.app/Frameworks/(XC.*\.framework|Testing\.framework|libXCTestSwiftSupport\.dylib)"
+
+      - name: Upload unsigned WDA app zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgentRunner-Runner-app-zip
+          path: WebDriverAgentRunner-Runner.app.zip
+          if-no-files-found: error
+
+      - name: Upload unsigned WDA IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: WebDriverAgentRunner-Runner-unsigned-ipa
+          path: WebDriverAgentRunner-Runner.unsigned.ipa
+          if-no-files-found: error
