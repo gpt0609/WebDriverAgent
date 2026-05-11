@@ -9,13 +9,10 @@ on:
         required: true
         type: string
 
-env:
-  HOST: macos-15
-
 jobs:
   build_unsigned_ios_wda:
     name: Build unsigned iOS WDA package
-    runs-on: ${{ env.HOST }}
+    runs-on: macos-15
 
     steps:
       - name: Checkout
