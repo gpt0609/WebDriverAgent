@@ -14,6 +14,7 @@ Usage:
 
 Inputs may be an unsigned .ipa, a .app bundle, or an .app.zip artifact.
 The bundle id is the final CFBundleIdentifier written into the Runner app.
+The script preserves the XCTest framework layout from the input package.
 USAGE
 }
 
@@ -143,11 +144,11 @@ TEST_BUNDLE_PLIST="$APP_PATH/PlugIns/WebDriverAgentRunner.xctest/Info.plist"
 LIB_FRAMEWORK_PLIST="$APP_PATH/PlugIns/WebDriverAgentRunner.xctest/Frameworks/WebDriverAgentLib.framework/Info.plist"
 
 FRAMEWORKS_DIR="$APP_PATH/Frameworks"
+FRAMEWORK_MODE="stripped"
 if [[ -d "$FRAMEWORKS_DIR" ]]; then
-  find "$FRAMEWORKS_DIR" -maxdepth 1 -name "XC*.framework" -exec rm -rf {} +
-  rm -rf \
-    "$FRAMEWORKS_DIR/Testing.framework" \
-    "$FRAMEWORKS_DIR/libXCTestSwiftSupport.dylib"
+  if find "$FRAMEWORKS_DIR" -maxdepth 1 \( -name "XC*.framework" -o -name "Testing.framework" -o -name "libXCTestSwiftSupport.dylib" \) -print -quit | grep -q .; then
+    FRAMEWORK_MODE="full"
+  fi
 fi
 
 find "$APP_PATH" -name "_CodeSignature" -type d -prune -exec rm -rf {} +
@@ -200,6 +201,7 @@ codesign "${SIGN_OPTIONS[@]}" --entitlements "$ENTITLEMENTS_PLIST" "$APP_PATH"
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 security cms -D -i "$APP_PATH/embedded.mobileprovision" >/dev/null
 
+echo "Framework mode: $FRAMEWORK_MODE"
 echo "Runner app bundle id: $("$PLISTBUDDY" -c "Print :CFBundleIdentifier" "$INFO_PLIST")"
 if [[ -f "$TEST_BUNDLE_PLIST" ]]; then
   echo "Test bundle id: $("$PLISTBUDDY" -c "Print :CFBundleIdentifier" "$TEST_BUNDLE_PLIST")"

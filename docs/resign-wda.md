@@ -37,7 +37,8 @@ WebDriverAgentRunner-Runner.full.unsigned.ipa
 The default `WebDriverAgentRunner-Runner.app.zip` and
 `WebDriverAgentRunner-Runner.unsigned.ipa` artifacts follow Appium's upstream
 real-device packaging strategy. They remove embedded XCTest runtime files that
-are unsafe for reuse across iOS versions:
+are unsafe for reuse across iOS versions when Appium launches WDA as a
+preinstalled/prebuilt package:
 
 ```text
 Frameworks/XC*.framework
@@ -45,10 +46,11 @@ Frameworks/Testing.framework
 Frameworks/libXCTestSwiftSupport.dylib
 ```
 
-The `full` artifacts keep those frameworks. Use them only when your installation
-or re-signing flow explicitly expects the larger Xcode-style package. The
-stripped artifacts are smaller, but this is expected and matches Appium's
-official real-device release package size.
+The `full` artifacts keep those frameworks. Use the `full` package when your
+goal is to keep the Xcode-style larger runner package, for example when you
+want to test manual tapping of the icon and the classic `Automation Running`
+behavior. The stripped artifacts are smaller, but this is expected and matches
+Appium's official real-device release package size.
 
 ## 2. Re-sign on macOS
 
@@ -94,6 +96,16 @@ Appium updatedWDABundleId:  com.example.WebDriverAgentRunner
 If you intentionally sign the app without the `.xctrunner` suffix, set
 `appium:updatedWDABundleIdSuffix` to an empty string when starting Appium.
 
+The script preserves the input package type:
+
+- Input `WebDriverAgentRunner-Runner.full.unsigned.ipa` -> output remains a full package
+- Input `WebDriverAgentRunner-Runner.unsigned.ipa` -> output remains a stripped package
+
+Choose the input package based on the launch model you need:
+
+- Manual icon launch / `Automation Running` check -> use the `full` package
+- Appium `usePreinstalledWDA` / `prebuiltWDAPath` on iOS 17+ -> use the stripped package
+
 ## 3. Verify the signed package
 
 After re-signing, the script runs:
@@ -116,11 +128,10 @@ security cms -D -i /tmp/wda-signed/Payload/WebDriverAgentRunner-Runner.app/embed
 Install with any tool that can install signed iOS packages, such as `tidevice`,
 `ios-deploy`, or Appium's `appium:prebuiltWDAPath` flow.
 
-Important: manually tapping `WebDriverAgentRunner-Runner` on the device is not
-the verification step. WDA is an XCTest runner, so the package must be launched
-by Appium/XCUITest or another XCTest-capable launcher. On some setups, tapping
-the icon can immediately return to the home screen even though the package is
-properly installed.
+Important: `WebDriverAgentRunner-Runner` is still an XCTest runner, not a
+normal app. If you want to test manual tapping of the icon, use the signed
+`full` package. If you want Appium to launch WDA on iOS 17+, use the signed
+stripped package instead.
 
 Example Appium capabilities when the final app bundle id ends in `.xctrunner`:
 
