@@ -76,9 +76,15 @@ dist/WebDriverAgentRunner-Runner.signed.ipa
 dist/WebDriverAgentRunner-Runner.signed.app.zip
 ```
 
-The `--bundle-id` value is the exact `CFBundleIdentifier` written into the
-Runner app. For Appium's default launch behavior, use a final id ending in
-`.xctrunner`, for example:
+The `--bundle-id` value is the exact final identifier used for all WDA-owned
+bundles inside the package:
+
+- `WebDriverAgentRunner-Runner.app`
+- `PlugIns/WebDriverAgentRunner.xctest`
+- `PlugIns/WebDriverAgentRunner.xctest/Frameworks/WebDriverAgentLib.framework`
+
+For Appium's default launch behavior, use a final id ending in `.xctrunner`,
+for example:
 
 ```text
 Final app bundle id:        com.example.WebDriverAgentRunner.xctrunner
@@ -110,6 +116,12 @@ security cms -D -i /tmp/wda-signed/Payload/WebDriverAgentRunner-Runner.app/embed
 Install with any tool that can install signed iOS packages, such as `tidevice`,
 `ios-deploy`, or Appium's `appium:prebuiltWDAPath` flow.
 
+Important: manually tapping `WebDriverAgentRunner-Runner` on the device is not
+the verification step. WDA is an XCTest runner, so the package must be launched
+by Appium/XCUITest or another XCTest-capable launcher. On some setups, tapping
+the icon can immediately return to the home screen even though the package is
+properly installed.
+
 Example Appium capabilities when the final app bundle id ends in `.xctrunner`:
 
 ```json
@@ -121,6 +133,10 @@ Example Appium capabilities when the final app bundle id ends in `.xctrunner`:
   "appium:updatedWDABundleId": "com.example.WebDriverAgentRunner"
 }
 ```
+
+Do not pass `com.example.WebDriverAgentRunner.xctrunner` as
+`appium:updatedWDABundleId` in the default case. Appium appends `.xctrunner`
+automatically unless `appium:updatedWDABundleIdSuffix` is set to `""`.
 
 Example Appium capabilities when Appium should install the re-signed app bundle
 for the session:
@@ -167,5 +183,7 @@ curl http://127.0.0.1:8100/status
   re-signed package.
 - Free Apple Developer accounts usually cannot create wildcard profiles for this
   workflow; use a paid account if you need broad device coverage.
+- The target device must trust the signing profile, have Developer Mode enabled,
+  and have the developer disk image mounted before XCTest can launch WDA.
 - Do not commit certificates, private keys, `.p12` files, or provisioning
   profiles to this repository.
