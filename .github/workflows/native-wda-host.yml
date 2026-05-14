@@ -5,14 +5,14 @@ on:
     inputs:
       xcode_version:
         description: Xcode version used to build LobsterWDAHost
-        default: "16.4"
+        default: "latest-stable"
         required: true
         type: string
 
 jobs:
   build_unsigned_native_wda_host:
     name: Build unsigned native WDA host
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
