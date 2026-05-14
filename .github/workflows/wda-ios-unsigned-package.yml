@@ -36,6 +36,8 @@ jobs:
           IPA_PKG_NAME: WebDriverAgentRunner-Runner.unsigned.ipa
           FULL_ZIP_PKG_NAME: WebDriverAgentRunner-Runner.full.app.zip
           FULL_IPA_PKG_NAME: WebDriverAgentRunner-Runner.full.unsigned.ipa
+          RUNNER_APP_BUNDLE_ID: app.honey4212.crystal5671.xctrunner
+          RUNNER_XCTEST_BUNDLE_ID: app.honey4212.crystal5671
 
       - name: Verify package contents
         run: |

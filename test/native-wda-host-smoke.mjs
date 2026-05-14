@@ -74,9 +74,16 @@ assert.match(buildScript, /LobsterWDAHost\.unsigned\.ipa/);
 
 const runnerBuildScript = read('Scripts/ci/build-real-ios-unsigned.sh');
 assert.match(runnerBuildScript, /Ensure-Runner-Local-Network-Plist/);
+assert.match(runnerBuildScript, /RUNNER_APP_BUNDLE_ID="\$\{RUNNER_APP_BUNDLE_ID:-\}"/);
+assert.match(runnerBuildScript, /RUNNER_XCTEST_BUNDLE_ID="\$\{RUNNER_XCTEST_BUNDLE_ID:-\}"/);
+assert.match(runnerBuildScript, /Apply-Runner-Bundle-Identifiers/);
 assert.match(runnerBuildScript, /NSBonjourServices/);
 assert.match(runnerBuildScript, /_wda\._tcp/);
 assert.match(runnerBuildScript, /_wda\._tcp\./);
+
+const runnerWorkflow = read('.github/workflows/wda-ios-unsigned-package.yml');
+assert.match(runnerWorkflow, /RUNNER_APP_BUNDLE_ID: app\.honey4212\.crystal5671\.xctrunner/);
+assert.match(runnerWorkflow, /RUNNER_XCTEST_BUNDLE_ID: app\.honey4212\.crystal5671/);
 
 const resignScript = read('Scripts/resign-native-wda.ps1');
 assert.match(resignScript, /app\.honey4212\.crystal5671/);

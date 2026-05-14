@@ -17,6 +17,8 @@ FULL_ZIP_PKG_NAME="${FULL_ZIP_PKG_NAME:-WebDriverAgentRunner-Runner.full.app.zip
 FULL_IPA_PKG_NAME="${FULL_IPA_PKG_NAME:-WebDriverAgentRunner-Runner.full.unsigned.ipa}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR}"
 PLIST_BUDDY="${PLIST_BUDDY:-/usr/libexec/PlistBuddy}"
+RUNNER_APP_BUNDLE_ID="${RUNNER_APP_BUNDLE_ID:-}"
+RUNNER_XCTEST_BUNDLE_ID="${RUNNER_XCTEST_BUNDLE_ID:-}"
 LOCAL_NETWORK_USAGE_DESCRIPTION="Allows WebDriverAgent to advertise its automation HTTP service on the local network."
 
 APP_PATH="$PRODUCTS_DIR/$APP_NAME"
@@ -55,6 +57,21 @@ ensure_runner_local_network_plist() {
   "$PLIST_BUDDY" -c "Add :NSBonjourServices:1 string _wda._tcp." "$plist_path"
 }
 
+apply_runner_bundle_identifiers() {
+  local app_path="$1"
+  local xctest_path=""
+
+  if [[ -n "$RUNNER_APP_BUNDLE_ID" ]]; then
+    ensure_plist_string "$app_path/Info.plist" CFBundleIdentifier "$RUNNER_APP_BUNDLE_ID"
+  fi
+
+  if [[ -n "$RUNNER_XCTEST_BUNDLE_ID" && -d "$app_path/PlugIns" ]]; then
+    while IFS= read -r -d '' xctest_path; do
+      ensure_plist_string "$xctest_path/Info.plist" CFBundleIdentifier "$RUNNER_XCTEST_BUNDLE_ID"
+    done < <(find "$app_path/PlugIns" -maxdepth 1 -type d -name "*.xctest" -print0)
+  fi
+}
+
 mkdir -p "$OUTPUT_DIR"
 
 xcodebuild clean build-for-testing \
@@ -68,6 +85,9 @@ if [[ ! -d "$APP_PATH" ]]; then
   echo "Expected WDA app was not found at: $APP_PATH" >&2
   exit 1
 fi
+
+# Apply-Runner-Bundle-Identifiers
+apply_runner_bundle_identifiers "$APP_PATH"
 
 # Ensure-Runner-Local-Network-Plist
 ensure_runner_local_network_plist "$APP_PATH/Info.plist"
