@@ -19,6 +19,19 @@
 
 @implementation UITestingUITests
 
+static FBWebServer *FBSharedWebServer = nil;
+
+static void FBStartWebServerOnce(id<FBWebServerDelegate> delegate)
+{
+  if (FBSharedWebServer != nil) {
+    return;
+  }
+  NSLog(@"LobsterWDA: starting FBWebServer");
+  FBSharedWebServer = [[FBWebServer alloc] init];
+  FBSharedWebServer.delegate = delegate;
+  [FBSharedWebServer startServing];
+}
+
 + (void)setUp
 {
   [FBDebugLogDelegateDecorator decorateXCTestLogger];
@@ -36,6 +49,10 @@
     [FBConfiguration disableScreenshots];
   }
   [super setUp];
+  if (NSProcessInfo.processInfo.environment[@"WDA_START_IN_CLASS_SETUP"]) {
+    NSLog(@"LobsterWDA: WDA_START_IN_CLASS_SETUP requested");
+    FBStartWebServerOnce(nil);
+  }
 }
 
 /**
@@ -43,9 +60,8 @@
  */
 - (void)testRunner
 {
-  FBWebServer *webServer = [[FBWebServer alloc] init];
-  webServer.delegate = self;
-  [webServer startServing];
+  NSLog(@"LobsterWDA: testRunner entered");
+  FBStartWebServerOnce(self);
 }
 
 #pragma mark - FBWebServerDelegate
@@ -53,6 +69,7 @@
 - (void)webServerDidRequestShutdown:(FBWebServer *)webServer
 {
   [webServer stopServing];
+  FBSharedWebServer = nil;
 }
 
 @end
