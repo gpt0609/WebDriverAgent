@@ -56,6 +56,9 @@ assert.doesNotMatch(resignScript, /ConvertTo-SecureString/);
 
 const continueScript = read('Scripts/continue-native-wda-goal.ps1');
 assert.match(continueScript, /LobsterWDAHost-unsigned-ipa/);
+assert.match(continueScript, /\$RunId/);
+assert.match(continueScript, /\$InputIpa/);
+assert.match(continueScript, /Using local unsigned IPA/);
 assert.match(continueScript, /00008030-0001598021E2802E/);
 assert.match(continueScript, /app\.honey4212\.crystal5671/);
 assert.match(continueScript, /native-wda-host\.yml/);

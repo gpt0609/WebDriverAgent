@@ -5,6 +5,8 @@ param(
     [string]$RunnerLabel = "macos-14",
     [string]$XcodeVersion = "latest-stable",
     [string]$TokenPath = "Github.txt",
+    [string]$RunId = "",
+    [string]$InputIpa = "",
     [string]$ArtifactName = "LobsterWDAHost-unsigned-ipa",
     [string]$OutputDirectory = "artifacts\lobster-wda-host",
     [string]$DeviceUdid = "00008030-0001598021E2802E",
@@ -231,46 +233,58 @@ if ([string]::IsNullOrWhiteSpace($BundleId) -and -not $SkipLaunch) {
     throw "BundleId is required unless -SkipLaunch is used"
 }
 
-$token = Read-GitHubToken -Path $TokenPath
-$headers = @{
-    Authorization = "Bearer $token"
-    Accept = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
-    "User-Agent" = "codex-local-wda-build"
-}
-
-if (-not $SkipDispatch) {
-    $body = @{
-        ref = $Ref
-        inputs = @{
-            xcode_version = $XcodeVersion
-            runner_label = $RunnerLabel
-        }
+$unsignedIpa = ""
+if (-not [string]::IsNullOrWhiteSpace($InputIpa)) {
+    $unsignedIpa = Resolve-File -Path $InputIpa -Label "Input IPA"
+    Write-Host "Using local unsigned IPA: $unsignedIpa"
+} else {
+    $token = Read-GitHubToken -Path $TokenPath
+    $headers = @{
+        Authorization = "Bearer $token"
+        Accept = "application/vnd.github+json"
+        "X-GitHub-Api-Version" = "2022-11-28"
+        "User-Agent" = "codex-local-wda-build"
     }
-    Invoke-GitHubJson `
+
+    if (-not $SkipDispatch -and [string]::IsNullOrWhiteSpace($RunId)) {
+        $body = @{
+            ref = $Ref
+            inputs = @{
+                xcode_version = $XcodeVersion
+                runner_label = $RunnerLabel
+            }
+        }
+        Invoke-GitHubJson `
+            -Headers $headers `
+            -Method "Post" `
+            -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Workflow/dispatches" `
+            -Body $body
+        Start-Sleep -Seconds 5
+    }
+
+    if ([string]::IsNullOrWhiteSpace($RunId)) {
+        $run = Get-LatestWorkflowRun -Headers $headers -Repo $Repo -Workflow $Workflow -Ref $Ref
+        $RunId = $run.id
+        Write-Host "Using workflow run: $($run.id) $($run.html_url)"
+    } else {
+        Write-Host "Using workflow run: $RunId"
+    }
+
+    $completedRun = Wait-WorkflowRun `
         -Headers $headers `
-        -Method "Post" `
-        -Uri "https://api.github.com/repos/$Repo/actions/workflows/$Workflow/dispatches" `
-        -Body $body
-    Start-Sleep -Seconds 5
+        -Repo $Repo `
+        -RunId $RunId `
+        -PollSeconds $PollSeconds `
+        -TimeoutMinutes $TimeoutMinutes
+
+    $unsignedIpa = Download-Artifact `
+        -Headers $headers `
+        -Repo $Repo `
+        -RunId $completedRun.id `
+        -ArtifactName $ArtifactName `
+        -OutputDirectory $OutputDirectory
+    Write-Host "Unsigned IPA: $unsignedIpa"
 }
-
-$run = Get-LatestWorkflowRun -Headers $headers -Repo $Repo -Workflow $Workflow -Ref $Ref
-Write-Host "Using workflow run: $($run.id) $($run.html_url)"
-$completedRun = Wait-WorkflowRun `
-    -Headers $headers `
-    -Repo $Repo `
-    -RunId $run.id `
-    -PollSeconds $PollSeconds `
-    -TimeoutMinutes $TimeoutMinutes
-
-$unsignedIpa = Download-Artifact `
-    -Headers $headers `
-    -Repo $Repo `
-    -RunId $completedRun.id `
-    -ArtifactName $ArtifactName `
-    -OutputDirectory $OutputDirectory
-Write-Host "Unsigned IPA: $unsignedIpa"
 
 $signedIpa = Join-Path (Split-Path -Parent $unsignedIpa) "LobsterWDAHost.signed.ipa"
 $resignArgs = @(
