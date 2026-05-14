@@ -93,9 +93,11 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
     ? dispatch_queue_create("com.facebook.WebDriverAgent.RouteQueue", DISPATCH_QUEUE_SERIAL)
     : dispatch_get_main_queue();
   [self.server setRouteQueue:routeQueue];
+#if !OS_OBJECT_USE_OBJC
   if (shouldUseBackgroundRouteQueue) {
     dispatch_release(routeQueue);
   }
+#endif
   [self.server setDefaultHeader:@"Server" value:@"WebDriverAgent/1.0"];
   [self.server setDefaultHeader:@"Access-Control-Allow-Origin" value:@"*"];
   [self.server setDefaultHeader:@"Access-Control-Allow-Headers" value:@"Content-Type, X-Requested-With"];
