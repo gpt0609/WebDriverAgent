@@ -8,11 +8,16 @@ on:
         default: "latest-stable"
         required: true
         type: string
+      runner_label:
+        description: GitHub runner label used for the iOS build
+        default: "macos-14"
+        required: true
+        type: string
 
 jobs:
   build_unsigned_native_wda_host:
     name: Build unsigned native WDA host
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner_label }}
 
     steps:
       - name: Checkout
