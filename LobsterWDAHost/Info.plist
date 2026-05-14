@@ -24,6 +24,11 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Allow local network access so this device can expose WebDriverAgent over Wi-Fi.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_wda._tcp</string>
+		<string>_wda._tcp.</string>
+	</array>
 	<key>UIApplicationExitsOnSuspend</key>
 	<false/>
 	<key>UIRequiredDeviceCapabilities</key>

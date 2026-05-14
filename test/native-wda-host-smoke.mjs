@@ -55,6 +55,9 @@ assert.match(fbWebServer, /stopBonjourService/);
 
 const infoPlist = read('LobsterWDAHost/Info.plist');
 assert.match(infoPlist, /NSLocalNetworkUsageDescription/);
+assert.match(infoPlist, /NSBonjourServices/);
+assert.match(infoPlist, /_wda\._tcp/);
+assert.match(infoPlist, /_wda\._tcp\./);
 assert.match(infoPlist, /UIApplicationExitsOnSuspend/);
 assert.match(infoPlist, /<false\/>/);
 
