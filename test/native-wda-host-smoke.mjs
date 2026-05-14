@@ -45,8 +45,12 @@ const fbWebServer = read('WebDriverAgentLib/Routing/FBWebServer.m');
 assert.match(fbWebServer, /FBConfiguration\.shouldUseBackgroundRouteQueue/);
 assert.match(fbWebServer, /dispatch_queue_create\("com\.facebook\.WebDriverAgent\.RouteQueue"/);
 assert.match(fbWebServer, /NSNetService/);
+assert.match(fbWebServer, /NSNetServiceBrowser/);
 assert.match(fbWebServer, /_wda\._tcp\./);
 assert.match(fbWebServer, /\[self\.bonjourService publish\]/);
+assert.match(fbWebServer, /\[self\.bonjourBrowser searchForServicesOfType:FBBonjourServiceType inDomain:@""\]/);
+assert.match(fbWebServer, /netService:.*didNotPublish/s);
+assert.match(fbWebServer, /netServiceBrowser:.*didNotSearch/s);
 assert.match(fbWebServer, /stopBonjourService/);
 
 const infoPlist = read('LobsterWDAHost/Info.plist');

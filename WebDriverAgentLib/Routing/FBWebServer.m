@@ -44,13 +44,14 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
 @end
 
 
-@interface FBWebServer ()
+@interface FBWebServer () <NSNetServiceDelegate, NSNetServiceBrowserDelegate>
 @property (nonatomic, strong) FBExceptionHandler *exceptionHandler;
 @property (nonatomic, strong) RoutingHTTPServer *server;
 @property (atomic, assign) BOOL keepAlive;
 @property (nonatomic, nullable) FBTCPSocket *screenshotsBroadcaster;
 @property (nonatomic, nullable, strong) FBMjpegServer *mjpegServer;
 @property (nonatomic, nullable, strong) NSNetService *bonjourService;
+@property (nonatomic, nullable, strong) NSNetServiceBrowser *bonjourBrowser;
 @end
 
 @implementation FBWebServer
@@ -138,6 +139,7 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
   }
 
   [self publishBonjourService];
+  [self startBonjourBrowser];
 
   NSString *serverHost = bindingIP ?: ([XCUIDevice sharedDevice].fb_wifiIPAddress ?: @"127.0.0.1");
   [FBLogger logFmt:@"%@http://%@:%d%@", FBServerURLBeginMarker, serverHost, [self.server port], FBServerURLEndMarker];
@@ -159,14 +161,52 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
                                                         type:FBBonjourServiceType
                                                         name:FBBonjourServiceName
                                                         port:(int)port];
+  self.bonjourService.delegate = self;
   [self.bonjourService publish];
   [FBLogger logFmt:@"Published WDA Bonjour service %@ on port %d", FBBonjourServiceType, port];
 }
 
+- (void)startBonjourBrowser
+{
+  if (self.bonjourBrowser != nil) {
+    return;
+  }
+
+  self.bonjourBrowser = [[NSNetServiceBrowser alloc] init];
+  self.bonjourBrowser.delegate = self;
+  [self.bonjourBrowser searchForServicesOfType:FBBonjourServiceType inDomain:@""];
+  [FBLogger logFmt:@"Started WDA Bonjour browser for %@", FBBonjourServiceType];
+}
+
 - (void)stopBonjourService
 {
+  [self.bonjourBrowser stop];
+  self.bonjourBrowser.delegate = nil;
+  self.bonjourBrowser = nil;
+
   [self.bonjourService stop];
+  self.bonjourService.delegate = nil;
   self.bonjourService = nil;
+}
+
+- (void)netServiceDidPublish:(NSNetService *)sender
+{
+  [FBLogger logFmt:@"WDA Bonjour service published as %@.%@", sender.name, sender.type];
+}
+
+- (void)netService:(NSNetService *)sender didNotPublish:(NSDictionary<NSString *, NSNumber *> *)errorDict
+{
+  [FBLogger logFmt:@"Failed to publish WDA Bonjour service %@: %@", sender.type, errorDict];
+}
+
+- (void)netServiceBrowserWillSearch:(NSNetServiceBrowser *)browser
+{
+  [FBLogger logFmt:@"WDA Bonjour browser started for %@", FBBonjourServiceType];
+}
+
+- (void)netServiceBrowser:(NSNetServiceBrowser *)browser didNotSearch:(NSDictionary<NSString *, NSNumber *> *)errorDict
+{
+  [FBLogger logFmt:@"Failed to browse WDA Bonjour service %@: %@", FBBonjourServiceType, errorDict];
 }
 
 - (void)initScreenshotsBroadcaster
