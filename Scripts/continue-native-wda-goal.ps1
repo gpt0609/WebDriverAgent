@@ -8,11 +8,13 @@ param(
     [string]$ArtifactName = "LobsterWDAHost-unsigned-ipa",
     [string]$OutputDirectory = "artifacts\lobster-wda-host",
     [string]$DeviceUdid = "00008030-0001598021E2802E",
+    [string]$BundleId = "app.honey4212.crystal5671",
     [string]$IPhoneHost = "",
     [int]$PollSeconds = 20,
     [int]$TimeoutMinutes = 60,
     [switch]$SkipDispatch,
     [switch]$SkipInstall,
+    [switch]$SkipLaunch,
     [switch]$SkipWirelessCheck
 )
 
@@ -225,6 +227,9 @@ function Test-WdaEndpoint {
 if ([string]::IsNullOrWhiteSpace($DeviceUdid) -and -not $SkipInstall) {
     throw "DeviceUdid is required unless -SkipInstall is used"
 }
+if ([string]::IsNullOrWhiteSpace($BundleId) -and -not $SkipLaunch) {
+    throw "BundleId is required unless -SkipLaunch is used"
+}
 
 $token = Read-GitHubToken -Path $TokenPath
 $headers = @{
@@ -285,6 +290,14 @@ if (-not $SkipInstall) {
 & powershell @resignArgs
 if ($LASTEXITCODE -ne 0) {
     throw "resign-native-wda.ps1 failed with exit code $LASTEXITCODE"
+}
+
+if (-not $SkipInstall -and -not $SkipLaunch) {
+    & tidevice -u $DeviceUdid launch $BundleId
+    if ($LASTEXITCODE -ne 0) {
+        throw "tidevice launch failed with exit code $LASTEXITCODE"
+    }
+    Start-Sleep -Seconds 3
 }
 
 if (-not $SkipWirelessCheck) {
