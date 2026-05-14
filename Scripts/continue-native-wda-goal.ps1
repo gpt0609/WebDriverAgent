@@ -17,6 +17,7 @@ param(
     [switch]$SkipDispatch,
     [switch]$SkipInstall,
     [switch]$SkipLaunch,
+    [switch]$SkipIpaValidation,
     [switch]$SkipWirelessCheck
 )
 
@@ -226,6 +227,38 @@ function Test-WdaEndpoint {
     Write-Host "$uri OK ($($response.RawContentLength) bytes)"
 }
 
+function Test-NativeHostIpa {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($Path)
+    try {
+        $entryNames = $zip.Entries | ForEach-Object { $_.FullName }
+        $hasApp = $false
+        $hasInfoPlist = $false
+        $hasWdaFramework = $false
+        foreach ($entryName in $entryNames) {
+            if ($entryName -eq "Payload/LobsterWDAHost.app/" -or $entryName.StartsWith("Payload/LobsterWDAHost.app/")) {
+                $hasApp = $true
+            }
+            if ($entryName -eq "Payload/LobsterWDAHost.app/Info.plist") {
+                $hasInfoPlist = $true
+            }
+            if ($entryName.StartsWith("Payload/LobsterWDAHost.app/Frameworks/WebDriverAgentLib.framework/")) {
+                $hasWdaFramework = $true
+            }
+        }
+        if (-not $hasApp -or -not $hasInfoPlist -or -not $hasWdaFramework) {
+            throw "Input IPA does not look like LobsterWDAHost. Expected Payload/LobsterWDAHost.app with WebDriverAgentLib.framework: $Path"
+        }
+    } finally {
+        $zip.Dispose()
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($DeviceUdid) -and -not $SkipInstall) {
     throw "DeviceUdid is required unless -SkipInstall is used"
 }
@@ -284,6 +317,10 @@ if (-not [string]::IsNullOrWhiteSpace($InputIpa)) {
         -ArtifactName $ArtifactName `
         -OutputDirectory $OutputDirectory
     Write-Host "Unsigned IPA: $unsignedIpa"
+}
+
+if (-not $SkipIpaValidation) {
+    Test-NativeHostIpa -Path $unsignedIpa
 }
 
 $signedIpa = Join-Path (Split-Path -Parent $unsignedIpa) "LobsterWDAHost.signed.ipa"
