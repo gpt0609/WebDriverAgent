@@ -1,0 +1,53 @@
+name: Build unsigned native WDA host
+
+on:
+  workflow_dispatch:
+    inputs:
+      xcode_version:
+        description: Xcode version used to build LobsterWDAHost
+        default: "16.4"
+        required: true
+        type: string
+
+jobs:
+  build_unsigned_native_wda_host:
+    name: Build unsigned native WDA host
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode_version }}
+
+      - name: Build unsigned native WDA host app and IPA
+        run: bash "$GITHUB_WORKSPACE/Scripts/ci/build-native-ios-host.sh"
+        env:
+          DERIVED_DATA_PATH: lobster_wda_host_ios
+          SCHEME: LobsterWDAHost
+          DESTINATION: generic/platform=iOS
+          ZIP_PKG_NAME: LobsterWDAHost.app.zip
+          IPA_PKG_NAME: LobsterWDAHost.unsigned.ipa
+
+      - name: Verify package contents
+        run: |
+          set -euo pipefail
+          unzip -l LobsterWDAHost.unsigned.ipa | grep -q "Payload/LobsterWDAHost.app/"
+          unzip -l LobsterWDAHost.unsigned.ipa | grep -q "Payload/LobsterWDAHost.app/Frameworks/WebDriverAgentLib.framework/"
+
+      - name: Upload unsigned native host app zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: LobsterWDAHost-app-zip
+          path: LobsterWDAHost.app.zip
+          if-no-files-found: error
+
+      - name: Upload unsigned native host IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: LobsterWDAHost-unsigned-ipa
+          path: LobsterWDAHost.unsigned.ipa
+          if-no-files-found: error

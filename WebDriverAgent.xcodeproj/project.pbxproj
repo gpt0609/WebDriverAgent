@@ -531,6 +531,11 @@
 		71F5BE52252F14EB00EE9EBA /* FBExceptions.m in Sources */ = {isa = PBXBuildFile; fileRef = 71F5BE4E252F14EB00EE9EBA /* FBExceptions.m */; };
 		AABBCCDDEEFF001122334457 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = AABBCCDDEEFF001122334456 /* SceneDelegate.m */; };
 		AD35D06C1CF1C35500870A75 /* WebDriverAgentLib.framework in Copy frameworks */ = {isa = PBXBuildFile; fileRef = EE158A991CBD452B00A3E3F0 /* WebDriverAgentLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BEEF00000000000000000001 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = BEEF00000000000000000011 /* AppDelegate.m */; };
+		BEEF00000000000000000002 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = BEEF00000000000000000013 /* ViewController.m */; };
+		BEEF00000000000000000003 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = BEEF00000000000000000015 /* main.m */; };
+		BEEF00000000000000000004 /* WebDriverAgentLib.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE158A991CBD452B00A3E3F0 /* WebDriverAgentLib.framework */; };
+		BEEF00000000000000000005 /* WebDriverAgentLib.framework in Copy frameworks */ = {isa = PBXBuildFile; fileRef = EE158A991CBD452B00A3E3F0 /* WebDriverAgentLib.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		AD6C26941CF2379700F8B5FF /* FBAlert.h in Headers */ = {isa = PBXBuildFile; fileRef = AD6C26921CF2379700F8B5FF /* FBAlert.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		AD6C26951CF2379700F8B5FF /* FBAlert.m in Sources */ = {isa = PBXBuildFile; fileRef = AD6C26931CF2379700F8B5FF /* FBAlert.m */; };
 		AD6C26981CF2481700F8B5FF /* XCUIDevice+FBHelpers.h in Headers */ = {isa = PBXBuildFile; fileRef = AD6C26961CF2481700F8B5FF /* XCUIDevice+FBHelpers.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -850,6 +855,13 @@
 			remoteGlobalIDString = EE158A981CBD452B00A3E3F0;
 			remoteInfo = WebDriverAgentLib;
 		};
+		BEEF00000000000000000041 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 91F9DAE11B99DBC2001349B2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE158A981CBD452B00A3E3F0;
+			remoteInfo = WebDriverAgentLib;
+		};
 		EE158B5B1CBD462500A3E3F0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 91F9DAE11B99DBC2001349B2 /* Project object */;
@@ -920,6 +932,17 @@
 			dstSubfolderSpec = 10;
 			files = (
 				AD35D06C1CF1C35500870A75 /* WebDriverAgentLib.framework in Copy frameworks */,
+			);
+			name = "Copy frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEEF00000000000000000033 /* Copy frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BEEF00000000000000000005 /* WebDriverAgentLib.framework in Copy frameworks */,
 			);
 			name = "Copy frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1370,6 +1393,7 @@
 		EE9AB7FD1CAEE048008C271F /* UITestingUITests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = UITestingUITests.m; path = WebDriverAgentRunner/UITestingUITests.m; sourceTree = SOURCE_ROOT; };
 		EE9AB8031CAEE182008C271F /* build.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = build.sh; sourceTree = "<group>"; };
 		EE9B75D41CF7956C00275851 /* IntegrationApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IntegrationApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEEF00000000000000000016 /* LobsterWDAHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LobsterWDAHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EE9B75EC1CF7956C00275851 /* IntegrationTests_1.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = IntegrationTests_1.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EE9B76571CF7987300275851 /* FBRouteTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FBRouteTests.m; sourceTree = "<group>"; };
 		EE9B76581CF7987300275851 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1379,6 +1403,12 @@
 		EE9B76851CF7997600275851 /* ViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
 		EE9B76861CF7997600275851 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		EE9B76871CF7997600275851 /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		BEEF00000000000000000010 /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		BEEF00000000000000000011 /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		BEEF00000000000000000012 /* ViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
+		BEEF00000000000000000013 /* ViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		BEEF00000000000000000014 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BEEF00000000000000000015 /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		EE9B768D1CF7997600275851 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		EE9B76991CF799F400275851 /* FBAlertTests.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = FBAlertTests.m; sourceTree = "<group>"; };
 		EE9B76A11CF7A43900275851 /* FBConfiguration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = FBConfiguration.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
@@ -1480,6 +1510,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEEF00000000000000000031 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEEF00000000000000000004 /* WebDriverAgentLib.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1608,6 +1646,7 @@
 				EEC288F81BF0ED2500B4DC79 /* WebDriverAgentLib */,
 				EE9B75F91CF7964100275851 /* WebDriverAgentTests */,
 				EEF988341C486655005CA669 /* WebDriverAgentRunner */,
+				BEEF00000000000000000020 /* LobsterWDAHost */,
 				EE9AB8021CAEE182008C271F /* Scripts */,
 				91F9DAEA1B99DBC2001349B2 /* Products */,
 				B6E83A410C45944B036B6B0F /* Frameworks */,
@@ -1625,6 +1664,7 @@
 				EEF9882A1C486603005CA669 /* WebDriverAgentRunner.xctest */,
 				EE158A991CBD452B00A3E3F0 /* WebDriverAgentLib.framework */,
 				EE9B75D41CF7956C00275851 /* IntegrationApp.app */,
+				BEEF00000000000000000016 /* LobsterWDAHost.app */,
 				EE9B75EC1CF7956C00275851 /* IntegrationTests_1.xctest */,
 				EE5095FE1EBCC9090028E2FE /* IntegrationTests_2.xctest */,
 				EE22021C1ECC612200A29571 /* IntegrationTests_3.xctest */,
@@ -2017,6 +2057,19 @@
 				EE9AB8031CAEE182008C271F /* build.sh */,
 			);
 			path = Scripts;
+			sourceTree = "<group>";
+		};
+		BEEF00000000000000000020 /* LobsterWDAHost */ = {
+			isa = PBXGroup;
+			children = (
+				BEEF00000000000000000010 /* AppDelegate.h */,
+				BEEF00000000000000000011 /* AppDelegate.m */,
+				BEEF00000000000000000012 /* ViewController.h */,
+				BEEF00000000000000000013 /* ViewController.m */,
+				BEEF00000000000000000014 /* Info.plist */,
+				BEEF00000000000000000015 /* main.m */,
+			);
+			path = LobsterWDAHost;
 			sourceTree = "<group>";
 		};
 		EE9B75F91CF7964100275851 /* WebDriverAgentTests */ = {
@@ -2938,6 +2991,25 @@
 			productReference = EE9B75D41CF7956C00275851 /* IntegrationApp.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BEEF00000000000000000040 /* LobsterWDAHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEEF00000000000000000052 /* Build configuration list for PBXNativeTarget "LobsterWDAHost" */;
+			buildPhases = (
+				BEEF00000000000000000030 /* Sources */,
+				BEEF00000000000000000031 /* Frameworks */,
+				BEEF00000000000000000032 /* Resources */,
+				BEEF00000000000000000033 /* Copy frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BEEF00000000000000000042 /* PBXTargetDependency */,
+			);
+			name = LobsterWDAHost;
+			productName = LobsterWDAHost;
+			productReference = BEEF00000000000000000016 /* LobsterWDAHost.app */;
+			productType = "com.apple.product-type.application";
+		};
 		EE9B75EB1CF7956C00275851 /* IntegrationTests_1 */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EE9B75F81CF7956C00275851 /* Build configuration list for PBXNativeTarget "IntegrationTests_1" */;
@@ -3005,6 +3077,9 @@
 					EE9B75D31CF7956C00275851 = {
 						CreatedOnToolsVersion = 7.3.1;
 					};
+					BEEF00000000000000000040 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					EE9B75EB1CF7956C00275851 = {
 						CreatedOnToolsVersion = 7.3.1;
 						TestTargetID = EE9B75D31CF7956C00275851;
@@ -3037,6 +3112,7 @@
 				EE5095DD1EBCC9090028E2FE /* IntegrationTests_2 */,
 				EE2202031ECC612200A29571 /* IntegrationTests_3 */,
 				EE9B75D31CF7956C00275851 /* IntegrationApp */,
+				BEEF00000000000000000040 /* LobsterWDAHost */,
 			);
 		};
 /* End PBXProject section */
@@ -3096,6 +3172,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				EE9B76941CF7997600275851 /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEEF00000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3484,6 +3567,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEEF00000000000000000030 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEEF00000000000000000001 /* AppDelegate.m in Sources */,
+				BEEF00000000000000000002 /* ViewController.m in Sources */,
+				BEEF00000000000000000003 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EE9B75E81CF7956C00275851 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -3528,6 +3621,11 @@
 			isa = PBXTargetDependency;
 			target = EE158A981CBD452B00A3E3F0 /* WebDriverAgentLib */;
 			targetProxy = AD8D96F01D3C12960061268E /* PBXContainerItemProxy */;
+		};
+		BEEF00000000000000000042 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EE158A981CBD452B00A3E3F0 /* WebDriverAgentLib */;
+			targetProxy = BEEF00000000000000000041 /* PBXContainerItemProxy */;
 		};
 		EE158B5C1CBD462500A3E3F0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4304,6 +4402,68 @@
 			};
 			name = Release;
 		};
+		BEEF00000000000000000050 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = EEE5CABF1C80361500CBBDD9 /* IOSSettings.xcconfig */;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
+					"$(PLATFORM_DIR)/Developer/Library/PrivateFrameworks",
+				);
+				INFOPLIST_FILE = LobsterWDAHost/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+					/Developer/Library/Frameworks,
+					/Developer/Library/PrivateFrameworks,
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.honey4212.crystal5671;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BEEF00000000000000000051 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = EEE5CABF1C80361500CBBDD9 /* IOSSettings.xcconfig */;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PLATFORM_DIR)/Developer/Library/Frameworks",
+					"$(PLATFORM_DIR)/Developer/Library/PrivateFrameworks",
+				);
+				INFOPLIST_FILE = LobsterWDAHost/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+					/Developer/Library/Frameworks,
+					/Developer/Library/PrivateFrameworks,
+				);
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.honey4212.crystal5671;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		EE9B75F51CF7956C00275851 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 71649EC82518C19C0087F212 /* IOSTestSettings.xcconfig */;
@@ -4528,6 +4688,15 @@
 			buildConfigurations = (
 				EE9B75F31CF7956C00275851 /* Debug */,
 				EE9B75F41CF7956C00275851 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEEF00000000000000000052 /* Build configuration list for PBXNativeTarget "LobsterWDAHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEEF00000000000000000050 /* Debug */,
+				BEEF00000000000000000051 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
