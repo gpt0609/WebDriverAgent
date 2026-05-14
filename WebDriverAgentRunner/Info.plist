@@ -23,6 +23,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_wda._tcp</string>
+		<string>_wda._tcp.</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Allows WebDriverAgent to advertise its automation HTTP service on the local network.</string>

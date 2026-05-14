@@ -52,6 +52,7 @@ ensure_runner_local_network_plist() {
   "$PLIST_BUDDY" -c "Delete :NSBonjourServices" "$plist_path" >/dev/null 2>&1 || true
   "$PLIST_BUDDY" -c "Add :NSBonjourServices array" "$plist_path"
   "$PLIST_BUDDY" -c "Add :NSBonjourServices:0 string _wda._tcp" "$plist_path"
+  "$PLIST_BUDDY" -c "Add :NSBonjourServices:1 string _wda._tcp." "$plist_path"
 }
 
 mkdir -p "$OUTPUT_DIR"

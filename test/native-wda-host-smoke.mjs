@@ -62,6 +62,7 @@ const runnerInfoPlist = read('WebDriverAgentRunner/Info.plist');
 assert.match(runnerInfoPlist, /NSLocalNetworkUsageDescription/);
 assert.match(runnerInfoPlist, /NSBonjourServices/);
 assert.match(runnerInfoPlist, /_wda\._tcp/);
+assert.match(runnerInfoPlist, /_wda\._tcp\./);
 
 const buildScript = read('Scripts/ci/build-native-ios-host.sh');
 assert.match(buildScript, /SCHEME="\$\{SCHEME:-LobsterWDAHost\}"/);
@@ -72,6 +73,7 @@ const runnerBuildScript = read('Scripts/ci/build-real-ios-unsigned.sh');
 assert.match(runnerBuildScript, /Ensure-Runner-Local-Network-Plist/);
 assert.match(runnerBuildScript, /NSBonjourServices/);
 assert.match(runnerBuildScript, /_wda\._tcp/);
+assert.match(runnerBuildScript, /_wda\._tcp\./);
 
 const resignScript = read('Scripts/resign-native-wda.ps1');
 assert.match(resignScript, /app\.honey4212\.crystal5671/);
