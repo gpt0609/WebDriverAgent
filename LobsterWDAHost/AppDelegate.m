@@ -76,6 +76,7 @@
 
 - (void)startWebServer
 {
+  __block FBWebServer *server = nil;
   @synchronized (self) {
     if (self.isWebServerRunning) {
       [self updateViewWithMessage:@"Already running"];
@@ -85,14 +86,19 @@
     self.webServerRunning = YES;
     self.webServer = [[FBWebServer alloc] init];
     self.webServer.delegate = self;
+    server = self.webServer;
   }
 
   [self updateViewWithMessage:@"Starting"];
-  dispatch_async(dispatch_get_main_queue(), ^{
+  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     [self updateViewWithMessage:@"Running"];
-    [self.webServer startServing];
-    self.webServerRunning = NO;
-    self.webServer = nil;
+    [server startServing];
+    @synchronized (self) {
+      if (self.webServer == server) {
+        self.webServerRunning = NO;
+        self.webServer = nil;
+      }
+    }
     [self updateViewWithMessage:@"Stopped"];
   });
 }

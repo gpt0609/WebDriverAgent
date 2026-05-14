@@ -33,8 +33,10 @@ assert.match(project, /WebDriverAgentLib\.framework in Copy frameworks/);
 
 const appDelegate = read('LobsterWDAHost/AppDelegate.m');
 assert.match(appDelegate, /#import <WebDriverAgentLib\/FBWebServer\.h>/);
-assert.match(appDelegate, /\[self\.webServer startServing\]/);
+assert.match(appDelegate, /\[server startServing\]/);
 assert.match(appDelegate, /\[FBConfiguration disableRemoteQueryEvaluation\]/);
+assert.match(appDelegate, /dispatch_get_global_queue\(QOS_CLASS_USER_INITIATED, 0\)/);
+assert.doesNotMatch(appDelegate, /dispatch_async\(dispatch_get_main_queue\(\), \^\{\s*\[self updateViewWithMessage:@"Running"\];\s*\[self\.webServer startServing\];/s);
 
 const infoPlist = read('LobsterWDAHost/Info.plist');
 assert.match(infoPlist, /NSLocalNetworkUsageDescription/);
