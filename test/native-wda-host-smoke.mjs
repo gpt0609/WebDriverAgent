@@ -49,6 +49,8 @@ const resignScript = read('Scripts/resign-native-wda.ps1');
 assert.match(resignScript, /app\.honey4212\.crystal5671/);
 assert.match(resignScript, /zsign\.exe/);
 assert.match(resignScript, /password\.txt/);
+assert.match(resignScript, /Read-CertificatePassword/);
+assert.match(resignScript, /withoutNonAsciiLabel/);
 assert.doesNotMatch(resignScript, /ConvertTo-SecureString/);
 
 console.log('native WDA host smoke checks passed');
