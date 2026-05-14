@@ -16,6 +16,7 @@ for (const relativePath of [
   'LobsterWDAHost/Info.plist',
   'LobsterWDAHost/main.m',
   'Scripts/ci/build-native-ios-host.sh',
+  'Scripts/continue-native-wda-goal.ps1',
   'Scripts/resign-native-wda.ps1',
   '.github/workflows/native-wda-host.yml',
   'WebDriverAgent.xcodeproj/xcshareddata/xcschemes/LobsterWDAHost.xcscheme',
@@ -52,5 +53,16 @@ assert.match(resignScript, /password\.txt/);
 assert.match(resignScript, /Read-CertificatePassword/);
 assert.match(resignScript, /withoutNonAsciiLabel/);
 assert.doesNotMatch(resignScript, /ConvertTo-SecureString/);
+
+const continueScript = read('Scripts/continue-native-wda-goal.ps1');
+assert.match(continueScript, /LobsterWDAHost-unsigned-ipa/);
+assert.match(continueScript, /00008030-0001598021E2802E/);
+assert.match(continueScript, /native-wda-host\.yml/);
+assert.match(continueScript, /actions\/workflows\/\$Workflow\/dispatches/);
+assert.match(continueScript, /resign-native-wda\.ps1/);
+assert.match(continueScript, /\/status/);
+assert.match(continueScript, /\/screenshot/);
+assert.match(continueScript, /\/source/);
+assert.doesNotMatch(continueScript, /gh[pousr]_[A-Za-z0-9_]+/);
 
 console.log('native WDA host smoke checks passed');
