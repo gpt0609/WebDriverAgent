@@ -22,6 +22,7 @@
 #import "FBUnknownCommands.h"
 #import "FBConfiguration.h"
 #import "FBLogger.h"
+#import "GCDAsyncUdpSocket.h"
 
 #import "XCUIDevice+FBHelpers.h"
 
@@ -52,6 +53,7 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
 @property (nonatomic, nullable, strong) FBMjpegServer *mjpegServer;
 @property (nonatomic, nullable, strong) NSNetService *bonjourService;
 @property (nonatomic, nullable, strong) NSNetServiceBrowser *bonjourBrowser;
+@property (nonatomic, nullable, strong) GCDAsyncUdpSocket *localNetworkProbeSocket;
 @end
 
 @implementation FBWebServer
@@ -140,6 +142,7 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
 
   [self publishBonjourService];
   [self startBonjourBrowser];
+  [self sendLocalNetworkPermissionProbe];
 
   NSString *serverHost = bindingIP ?: ([XCUIDevice sharedDevice].fb_wifiIPAddress ?: @"127.0.0.1");
   [FBLogger logFmt:@"%@http://%@:%d%@", FBServerURLBeginMarker, serverHost, [self.server port], FBServerURLEndMarker];
@@ -178,6 +181,31 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
   [FBLogger logFmt:@"Started WDA Bonjour browser for %@", FBBonjourServiceType];
 }
 
+- (void)sendLocalNetworkPermissionProbe
+{
+  if (self.localNetworkProbeSocket != nil) {
+    return;
+  }
+
+  self.localNetworkProbeSocket = [[GCDAsyncUdpSocket alloc] initWithDelegate:nil
+                                                               delegateQueue:dispatch_get_main_queue()];
+
+  NSError *error = nil;
+  if (![self.localNetworkProbeSocket enableBroadcast:YES error:&error]) {
+    [FBLogger logFmt:@"Failed to enable WDA local network probe broadcast: %@", error.description];
+    self.localNetworkProbeSocket = nil;
+    return;
+  }
+
+  NSData *payload = [@"wda-local-network-probe" dataUsingEncoding:NSUTF8StringEncoding];
+  [self.localNetworkProbeSocket sendData:payload
+                                  toHost:@"255.255.255.255"
+                                    port:9
+                             withTimeout:1
+                                     tag:0];
+  [FBLogger log:@"Sent WDA local network permission probe"];
+}
+
 - (void)stopBonjourService
 {
   [self.bonjourBrowser stop];
@@ -187,6 +215,9 @@ static NSString *const FBBonjourServiceType = @"_wda._tcp.";
   [self.bonjourService stop];
   self.bonjourService.delegate = nil;
   self.bonjourService = nil;
+
+  [self.localNetworkProbeSocket close];
+  self.localNetworkProbeSocket = nil;
 }
 
 - (void)netServiceDidPublish:(NSNetService *)sender
