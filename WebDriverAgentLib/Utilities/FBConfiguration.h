@@ -26,6 +26,10 @@ extern NSString *const FBSnapshotMaxDepthKey;
 + (void)setShouldTerminateApp:(BOOL)value;
 + (BOOL)shouldTerminateApp;
 
+/*! If set to YES then HTTP route handlers are dispatched off the main queue. */
++ (void)setShouldUseBackgroundRouteQueue:(BOOL)value;
++ (BOOL)shouldUseBackgroundRouteQueue;
+
 /*! If shouldUseCompactResponses == NO, is the comma-separated list of fields to return with each element. Defaults to "type,label". */
 + (void)setElementResponseAttributes:(NSString *)value;
 + (NSString *)elementResponseAttributes;

@@ -57,6 +57,7 @@
 - (void)configureWebDriverAgent
 {
   [FBDebugLogDelegateDecorator decorateXCTestLogger];
+  [FBConfiguration setShouldUseBackgroundRouteQueue:YES];
   [FBConfiguration disableRemoteQueryEvaluation];
   [FBConfiguration configureDefaultKeyboardPreferences];
   [FBConfiguration disableApplicationUIInterruptionsHandling];
@@ -76,7 +77,6 @@
 
 - (void)startWebServer
 {
-  __block FBWebServer *server = nil;
   @synchronized (self) {
     if (self.isWebServerRunning) {
       [self updateViewWithMessage:@"Already running"];
@@ -86,19 +86,14 @@
     self.webServerRunning = YES;
     self.webServer = [[FBWebServer alloc] init];
     self.webServer.delegate = self;
-    server = self.webServer;
   }
 
   [self updateViewWithMessage:@"Starting"];
-  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+  dispatch_async(dispatch_get_main_queue(), ^{
     [self updateViewWithMessage:@"Running"];
-    [server startServing];
-    @synchronized (self) {
-      if (self.webServer == server) {
-        self.webServerRunning = NO;
-        self.webServer = nil;
-      }
-    }
+    [self.webServer startServing];
+    self.webServerRunning = NO;
+    self.webServer = nil;
     [self updateViewWithMessage:@"Stopped"];
   });
 }

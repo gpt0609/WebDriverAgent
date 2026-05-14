@@ -35,6 +35,7 @@ static NSString *const axSettingsClassName = @"AXSettings";
 
 static BOOL FBShouldUseSingletonTestManager = YES;
 static BOOL FBShouldRespectSystemAlerts = NO;
+static BOOL FBShouldUseBackgroundRouteQueue = NO;
 
 static CGFloat FBMjpegScalingFactor = 100.0;
 static BOOL FBMjpegShouldFixOrientation = NO;
@@ -204,6 +205,16 @@ static BOOL FBShouldEnforceCustomSnapshots = NO;
 + (BOOL)shouldTerminateApp
 {
   return FBShouldTerminateApp;
+}
+
++ (void)setShouldUseBackgroundRouteQueue:(BOOL)value
+{
+  FBShouldUseBackgroundRouteQueue = value;
+}
+
++ (BOOL)shouldUseBackgroundRouteQueue
+{
+  return FBShouldUseBackgroundRouteQueue;
 }
 
 + (void)setElementResponseAttributes:(NSString *)value

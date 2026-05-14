@@ -33,10 +33,17 @@ assert.match(project, /WebDriverAgentLib\.framework in Copy frameworks/);
 
 const appDelegate = read('LobsterWDAHost/AppDelegate.m');
 assert.match(appDelegate, /#import <WebDriverAgentLib\/FBWebServer\.h>/);
-assert.match(appDelegate, /\[server startServing\]/);
+assert.match(appDelegate, /\[self\.webServer startServing\]/);
 assert.match(appDelegate, /\[FBConfiguration disableRemoteQueryEvaluation\]/);
-assert.match(appDelegate, /dispatch_get_global_queue\(QOS_CLASS_USER_INITIATED, 0\)/);
-assert.doesNotMatch(appDelegate, /dispatch_async\(dispatch_get_main_queue\(\), \^\{\s*\[self updateViewWithMessage:@"Running"\];\s*\[self\.webServer startServing\];/s);
+assert.match(appDelegate, /\[FBConfiguration setShouldUseBackgroundRouteQueue:YES\]/);
+
+const fbConfigurationHeader = read('WebDriverAgentLib/Utilities/FBConfiguration.h');
+assert.match(fbConfigurationHeader, /setShouldUseBackgroundRouteQueue/);
+assert.match(fbConfigurationHeader, /shouldUseBackgroundRouteQueue/);
+
+const fbWebServer = read('WebDriverAgentLib/Routing/FBWebServer.m');
+assert.match(fbWebServer, /FBConfiguration\.shouldUseBackgroundRouteQueue/);
+assert.match(fbWebServer, /dispatch_queue_create\("com\.facebook\.WebDriverAgent\.RouteQueue"/);
 
 const infoPlist = read('LobsterWDAHost/Info.plist');
 assert.match(infoPlist, /NSLocalNetworkUsageDescription/);
