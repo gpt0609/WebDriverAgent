@@ -48,11 +48,11 @@ static void FBStartWebServerOnce(id<FBWebServerDelegate> delegate)
   } else {
     [FBConfiguration disableScreenshots];
   }
-  [super setUp];
   if (NSProcessInfo.processInfo.environment[@"WDA_START_IN_CLASS_SETUP"]) {
     NSLog(@"LobsterWDA: WDA_START_IN_CLASS_SETUP requested");
     FBStartWebServerOnce(nil);
   }
+  [super setUp];
 }
 
 /**
