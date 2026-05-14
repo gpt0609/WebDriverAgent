@@ -27,6 +27,8 @@
 
 static NSString *const FBServerURLBeginMarker = @"ServerURLHere->";
 static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
+static NSString *const FBBonjourServiceName = @"WebDriverAgent";
+static NSString *const FBBonjourServiceType = @"_wda._tcp.";
 
 @interface FBHTTPConnection : RoutingConnection
 @end
@@ -48,12 +50,14 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
 @property (atomic, assign) BOOL keepAlive;
 @property (nonatomic, nullable) FBTCPSocket *screenshotsBroadcaster;
 @property (nonatomic, nullable, strong) FBMjpegServer *mjpegServer;
+@property (nonatomic, nullable, strong) NSNetService *bonjourService;
 @end
 
 @implementation FBWebServer
 
 - (void)dealloc
 {
+  [self stopBonjourService];
   [self stopScreenshotsBroadcaster];
 }
 
@@ -133,8 +137,36 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
     abort();
   }
 
+  [self publishBonjourService];
+
   NSString *serverHost = bindingIP ?: ([XCUIDevice sharedDevice].fb_wifiIPAddress ?: @"127.0.0.1");
   [FBLogger logFmt:@"%@http://%@:%d%@", FBServerURLBeginMarker, serverHost, [self.server port], FBServerURLEndMarker];
+}
+
+- (void)publishBonjourService
+{
+  if (self.bonjourService != nil) {
+    return;
+  }
+
+  UInt16 port = [self.server port];
+  if (port == 0) {
+    [FBLogger log:@"Cannot publish WDA Bonjour service before HTTP server port is assigned"];
+    return;
+  }
+
+  self.bonjourService = [[NSNetService alloc] initWithDomain:@""
+                                                        type:FBBonjourServiceType
+                                                        name:FBBonjourServiceName
+                                                        port:(int)port];
+  [self.bonjourService publish];
+  [FBLogger logFmt:@"Published WDA Bonjour service %@ on port %d", FBBonjourServiceType, port];
+}
+
+- (void)stopBonjourService
+{
+  [self.bonjourService stop];
+  self.bonjourService = nil;
 }
 
 - (void)initScreenshotsBroadcaster
@@ -186,6 +218,7 @@ static NSString *const FBServerURLEndMarker = @"<-ServerURLHere";
 - (void)stopServing
 {
   [FBSession.activeSession kill];
+  [self stopBonjourService];
   [self stopScreenshotsBroadcaster];
   if (self.server.isRunning) {
     [self.server stop:NO];

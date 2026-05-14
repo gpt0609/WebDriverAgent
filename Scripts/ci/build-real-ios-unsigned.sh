@@ -16,6 +16,8 @@ IPA_PKG_NAME="${IPA_PKG_NAME:-WebDriverAgentRunner-Runner.unsigned.ipa}"
 FULL_ZIP_PKG_NAME="${FULL_ZIP_PKG_NAME:-WebDriverAgentRunner-Runner.full.app.zip}"
 FULL_IPA_PKG_NAME="${FULL_IPA_PKG_NAME:-WebDriverAgentRunner-Runner.full.unsigned.ipa}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR}"
+PLIST_BUDDY="${PLIST_BUDDY:-/usr/libexec/PlistBuddy}"
+LOCAL_NETWORK_USAGE_DESCRIPTION="Allows WebDriverAgent to advertise its automation HTTP service on the local network."
 
 APP_PATH="$PRODUCTS_DIR/$APP_NAME"
 IPA_WORK_DIR=""
@@ -26,6 +28,31 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+ensure_plist_string() {
+  local plist_path="$1"
+  local key="$2"
+  local value="$3"
+
+  if "$PLIST_BUDDY" -c "Print :$key" "$plist_path" >/dev/null 2>&1; then
+    "$PLIST_BUDDY" -c "Set :$key $value" "$plist_path"
+  else
+    "$PLIST_BUDDY" -c "Add :$key string $value" "$plist_path"
+  fi
+}
+
+ensure_runner_local_network_plist() {
+  local plist_path="$1"
+
+  if [[ ! -f "$plist_path" ]]; then
+    return
+  fi
+
+  ensure_plist_string "$plist_path" NSLocalNetworkUsageDescription "$LOCAL_NETWORK_USAGE_DESCRIPTION"
+  "$PLIST_BUDDY" -c "Delete :NSBonjourServices" "$plist_path" >/dev/null 2>&1 || true
+  "$PLIST_BUDDY" -c "Add :NSBonjourServices array" "$plist_path"
+  "$PLIST_BUDDY" -c "Add :NSBonjourServices:0 string _wda._tcp" "$plist_path"
+}
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -39,6 +66,14 @@ xcodebuild clean build-for-testing \
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Expected WDA app was not found at: $APP_PATH" >&2
   exit 1
+fi
+
+# Ensure-Runner-Local-Network-Plist
+ensure_runner_local_network_plist "$APP_PATH/Info.plist"
+if [[ -d "$APP_PATH/PlugIns" ]]; then
+  while IFS= read -r -d '' plist_path; do
+    ensure_runner_local_network_plist "$plist_path"
+  done < <(find "$APP_PATH/PlugIns" -maxdepth 2 -name Info.plist -print0)
 fi
 
 rm -f \

@@ -44,16 +44,30 @@ assert.match(fbConfigurationHeader, /shouldUseBackgroundRouteQueue/);
 const fbWebServer = read('WebDriverAgentLib/Routing/FBWebServer.m');
 assert.match(fbWebServer, /FBConfiguration\.shouldUseBackgroundRouteQueue/);
 assert.match(fbWebServer, /dispatch_queue_create\("com\.facebook\.WebDriverAgent\.RouteQueue"/);
+assert.match(fbWebServer, /NSNetService/);
+assert.match(fbWebServer, /_wda\._tcp\./);
+assert.match(fbWebServer, /\[self\.bonjourService publish\]/);
+assert.match(fbWebServer, /stopBonjourService/);
 
 const infoPlist = read('LobsterWDAHost/Info.plist');
 assert.match(infoPlist, /NSLocalNetworkUsageDescription/);
 assert.match(infoPlist, /UIApplicationExitsOnSuspend/);
 assert.match(infoPlist, /<false\/>/);
 
+const runnerInfoPlist = read('WebDriverAgentRunner/Info.plist');
+assert.match(runnerInfoPlist, /NSLocalNetworkUsageDescription/);
+assert.match(runnerInfoPlist, /NSBonjourServices/);
+assert.match(runnerInfoPlist, /_wda\._tcp/);
+
 const buildScript = read('Scripts/ci/build-native-ios-host.sh');
 assert.match(buildScript, /SCHEME="\$\{SCHEME:-LobsterWDAHost\}"/);
 assert.match(buildScript, /CODE_SIGNING_ALLOWED=NO ARCHS=arm64/);
 assert.match(buildScript, /LobsterWDAHost\.unsigned\.ipa/);
+
+const runnerBuildScript = read('Scripts/ci/build-real-ios-unsigned.sh');
+assert.match(runnerBuildScript, /Ensure-Runner-Local-Network-Plist/);
+assert.match(runnerBuildScript, /NSBonjourServices/);
+assert.match(runnerBuildScript, /_wda\._tcp/);
 
 const resignScript = read('Scripts/resign-native-wda.ps1');
 assert.match(resignScript, /app\.honey4212\.crystal5671/);
